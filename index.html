@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -7,259 +6,441 @@
 <title>AL MAJID AI CONTROL CENTER</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+:root{--green:#176b42;--dark:#10291d;--pale:#eaf3ed;--bg:#f2f6f3;--line:#dce6df;--red:#a83232}
 *{box-sizing:border-box}
-body{margin:0;background:#f2f6f3;color:#18251e;font-family:Arial,Tahoma,sans-serif}
-header{background:#10291d;color:white;padding:18px}
-header h2{margin:0 0 6px}
+body{margin:0;background:var(--bg);color:#18251e;font-family:Arial,Tahoma,sans-serif}
+header{background:var(--dark);color:#fff;padding:18px}
+header h2{margin:0 0 6px;font-size:21px}
 header small{color:#c9dfd1}
-main{max-width:1100px;margin:auto;padding:15px}
-.card{background:white;border-radius:13px;padding:16px;margin:12px 0;box-shadow:0 2px 9px #0000000d}
-h3{margin-top:0;color:#17432d}
+main{max-width:1100px;margin:auto;padding:14px}
+.card{background:#fff;border-radius:13px;padding:16px;margin:12px 0;box-shadow:0 2px 9px #0000000d}
+h3{margin:0 0 12px;color:#17432d}
+h4{margin:12px 0 8px;color:#17432d}
 input,select,textarea,button{font:inherit;width:100%;padding:12px;margin:6px 0;border:1px solid #ccd8cf;border-radius:8px}
-button{background:#176b42;color:white;border:0;font-weight:bold;cursor:pointer}
+textarea{min-height:75px;resize:vertical}
+button{background:var(--green);color:#fff;border:0;font-weight:bold;cursor:pointer}
 button.secondary{background:#e5eee8;color:#17432d}
-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
-nav button{font-size:13px;padding:10px 4px}
-.hidden{display:none}
+button.danger{background:var(--red)}
+button:disabled{opacity:.55;cursor:not-allowed}
+nav{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+nav button{font-size:13px;padding:11px 4px}
+.hidden{display:none!important}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.stat{background:#eaf3ed;padding:14px;border-radius:10px}
+.stat{background:var(--pale);padding:14px;border-radius:10px}
 .stat strong{display:block;font-size:22px;margin-top:7px}
-.item{border-bottom:1px solid #e5eae6;padding:10px 0;overflow-wrap:anywhere}
+.item{border-bottom:1px solid #e5eae6;padding:11px 0;overflow-wrap:anywhere}
 .muted{color:#68776d;font-size:13px}
-#message{padding:10px;color:#17432d}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.product{border:1px solid #e1e9e3;border-radius:12px;padding:12px;min-width:0}
+.product img{width:100%;height:160px;object-fit:cover;border-radius:8px;background:#f3f5f3}
+.price{font-weight:bold;color:var(--green);font-size:18px}
+.stars{color:#d99b18}
+#message{padding:10px;white-space:pre-wrap}
+.pill{display:inline-block;background:#eaf3ed;color:#17432d;border-radius:20px;padding:4px 9px;font-size:12px}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+.actions button{width:auto;flex:1;min-width:90px}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}nav{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
 <header>
-<h2>AL MAJID AI CONTROL CENTER</h2>
-<small>مركز إدارة وكالة الماجد للتسويق</small>
+  <h2>AL MAJID AI CONTROL CENTER</h2>
+  <small>مركز إدارة وكالة الماجد للتسويق</small>
 </header>
 <main>
-<div id="login" class="card">
-<h3>دخول المدير</h3>
-<p class="muted">سجل الدخول ببريد المدير وكلمة المرور الخاصة بحساب Supabase.</p>
-<input id="email" type="email" placeholder="البريد الإلكتروني">
-<input id="password" type="password" placeholder="كلمة المرور">
-<button onclick="login()">تسجيل الدخول</button>
-<div id="loginMsg" class="muted"></div>
-</div>
+  <section id="login" class="card">
+    <h3>دخول المدير</h3>
+    <input id="email" type="email" autocomplete="username" placeholder="البريد الإلكتروني">
+    <input id="password" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+    <button onclick="login()">تسجيل الدخول</button>
+    <div id="loginMsg" class="muted"></div>
+  </section>
 
-<div id="app" class="hidden">
-<div class="card">
-<div id="welcome">مرحباً بك في مركز التحكم</div>
-<button class="secondary" onclick="logout()">تسجيل الخروج</button>
-</div>
-<nav>
-<button onclick="show('home')">الرئيسية</button>
-<button onclick="show('employees')">الموظفون</button>
-<button onclick="show('clients')">العملاء</button>
-<button onclick="show('projects')">المشاريع</button>
-<button onclick="show('finance')">المالية</button>
-<button onclick="show('history')">السجل</button>
-</nav>
+  <section id="market" class="card">
+    <h3>السوق الإلكتروني</h3>
+    <p class="muted">تصفح المنتجات والبائعين والتقييمات.</p>
+    <input id="search" placeholder="ابحث عن منتج..." oninput="renderMarket()">
+    <select id="marketSellerFilter" onchange="renderMarket()"><option value="">كل البائعين</option></select>
+    <button class="secondary" onclick="showMarketAuth()">دخول العميل / إنشاء حساب</button>
+    <div id="marketProducts" class="grid"></div>
+    <div id="marketMessage" class="muted"></div>
+  </section>
 
-<section id="home" class="card">
-<h3>لوحة المعلومات</h3>
-<div class="stats">
-<div class="stat">الموظفون<strong id="nEmployees">0</strong></div>
-<div class="stat">العملاء<strong id="nClients">0</strong></div>
-<div class="stat">المشاريع<strong id="nProjects">0</strong></div>
-<div class="stat">الرصيد (NGN)<strong id="balance">0</strong></div>
-</div>
-<button onclick="refreshAll()">تحديث البيانات</button>
-</section>
+  <section id="marketLogin" class="card hidden">
+    <h3>دخول العميل</h3>
+    <input id="customerEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني">
+    <input id="customerPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+    <button onclick="customerLogin()">دخول</button>
+    <button class="secondary" onclick="customerRegister()">إنشاء حساب جديد</button>
+    <button class="secondary" onclick="hideMarketAuth()">إغلاق</button>
+    <div id="customerMessage" class="muted"></div>
+  </section>
 
-<section id="employees" class="card hidden">
-<h3>إدارة موظفي الذكاء الاصطناعي</h3>
-<input id="empCode" placeholder="رمز الموظف مثل AI01">
-<input id="empName" placeholder="اسم الموظف">
-<input id="empDept" placeholder="القسم">
-<input id="empJob" placeholder="المسمى الوظيفي">
-<select id="empLang"><option value="ar">العربية</option><option value="en">English</option><option value="ha">Hausa</option></select>
-<textarea id="empInstructions" placeholder="تعليمات ومهام الموظف"></textarea>
-<button onclick="addEmployee()">إضافة موظف</button>
-<div id="employeesList"></div>
-</section>
+  <section id="productDetails" class="card hidden">
+    <button class="secondary" onclick="backToMarket()">العودة إلى السوق</button>
+    <div id="productDetailContent"></div>
+    <hr>
+    <h3>تقييم المنتج</h3>
+    <select id="productStars"><option value="5">★★★★★ ممتاز</option><option value="4">★★★★ جيد جداً</option><option value="3">★★★ جيد</option><option value="2">★★ ضعيف</option><option value="1">★ سيئ</option></select>
+    <textarea id="productComment" placeholder="اكتب تعليقك عن المنتج"></textarea>
+    <button onclick="submitProductReview()">إرسال تقييم المنتج</button>
+    <div id="productReviews"></div>
+    <hr>
+    <h3>تقييم البائع</h3>
+    <select id="sellerStars"><option value="5">★★★★★ ممتاز</option><option value="4">★★★★ جيد جداً</option><option value="3">★★★ جيد</option><option value="2">★★ ضعيف</option><option value="1">★ سيئ</option></select>
+    <textarea id="sellerComment" placeholder="اكتب تعليقك عن البائع"></textarea>
+    <button onclick="submitSellerReview()">إرسال تقييم البائع</button>
+    <div id="sellerReviews"></div>
+  </section>
 
-<section id="clients" class="card hidden">
-<h3>إدارة العملاء</h3>
-<input id="clientName" placeholder="اسم العميل">
-<input id="businessName" placeholder="اسم الشركة أو النشاط">
-<input id="clientPhone" placeholder="رقم الهاتف">
-<input id="clientWhatsapp" placeholder="رقم واتساب">
-<input id="clientEmail" placeholder="البريد الإلكتروني">
-<input id="clientState" placeholder="الولاية في نيجيريا">
-<textarea id="clientNotes" placeholder="ملاحظات"></textarea>
-<button onclick="addClient()">إضافة عميل</button>
-<div id="clientsList"></div>
-</section>
+  <div id="app" class="hidden">
+    <section class="card">
+      <div id="welcome">مرحباً بك في مركز التحكم</div>
+      <button class="secondary" onclick="logout()">تسجيل الخروج</button>
+    </section>
+    <nav>
+      <button onclick="show('home')">الرئيسية</button><button onclick="show('employees')">الموظفون</button>
+      <button onclick="show('clients')">العملاء</button><button onclick="show('projects')">المشاريع</button>
+      <button onclick="show('finance')">المالية</button><button onclick="show('history')">السجل</button>
+      <button onclick="show('marketAdmin')">إدارة السوق</button><button onclick="show('reviewsAdmin')">التقييمات</button>
+    </nav>
 
-<section id="projects" class="card hidden">
-<h3>إدارة المشاريع</h3>
-<select id="projectClient"><option value="">اختر العميل</option></select>
-<input id="projectTitle" placeholder="اسم المشروع">
-<input id="projectService" placeholder="نوع الخدمة">
-<textarea id="projectDescription" placeholder="وصف المشروع"></textarea>
-<input id="projectBudget" type="number" min="0" placeholder="الميزانية بالنايرا">
-<input id="projectDue" type="date">
-<button onclick="addProject()">إضافة مشروع</button>
-<div id="projectsList"></div>
-</section>
+    <section id="home" class="card">
+      <h3>لوحة المعلومات</h3>
+      <div class="stats">
+        <div class="stat">الموظفون<strong id="nEmployees">0</strong></div>
+        <div class="stat">العملاء<strong id="nClients">0</strong></div>
+        <div class="stat">المشاريع<strong id="nProjects">0</strong></div>
+        <div class="stat">الرصيد NGN<strong id="balance">0</strong></div>
+      </div>
+      <button onclick="refreshAll()">تحديث البيانات</button>
+    </section>
 
-<section id="finance" class="card hidden">
-<h3>الإيرادات والمصروفات</h3>
-<select id="financeType">
-<option value="income">إيراد</option>
-<option value="expense">مصروف</option>
-</select>
-<input id="financeAmount" type="number" min="1" placeholder="المبلغ بالنايرا">
-<input id="financeCategory" placeholder="التصنيف">
-<input id="financeDate" type="date">
-<input id="financeDescription" placeholder="البيان أو الوصف">
-<label>إرفاق إيصال التحويل (اختياري)</label>
-<input id="receipt" type="file" accept="image/*,.pdf">
-<button onclick="addFinance()">حفظ العملية</button>
-<div id="financeList"></div>
-</section>
+    <section id="employees" class="card hidden">
+      <h3>موظفو الذكاء الاصطناعي</h3>
+      <input id="empCode" placeholder="رمز الموظف AI01"><input id="empName" placeholder="اسم الموظف">
+      <input id="empDept" placeholder="القسم"><input id="empJob" placeholder="المسمى الوظيفي">
+      <select id="empLang"><option value="ar">العربية</option><option value="en">English</option><option value="ha">Hausa</option></select>
+      <textarea id="empInstructions" placeholder="تعليمات الموظف"></textarea>
+      <button onclick="addEmployee()">إضافة موظف</button><div id="employeesList"></div>
+    </section>
 
-<section id="history" class="card hidden">
-<h3>سجل العمليات</h3>
-<div id="historyList"></div>
-</section>
-<div id="message"></div>
-</div>
+    <section id="clients" class="card hidden">
+      <h3>العملاء</h3>
+      <input id="clientName" placeholder="اسم العميل"><input id="businessName" placeholder="اسم النشاط">
+      <input id="clientPhone" placeholder="رقم الهاتف"><input id="clientWhatsapp" placeholder="واتساب">
+      <input id="clientEmail" placeholder="البريد الإلكتروني"><input id="clientState" placeholder="الولاية">
+      <textarea id="clientNotes" placeholder="ملاحظات"></textarea>
+      <button onclick="addClient()">إضافة عميل</button><div id="clientsList"></div>
+    </section>
+
+    <section id="projects" class="card hidden">
+      <h3>المشاريع</h3>
+      <select id="projectClient"><option value="">اختر العميل</option></select>
+      <input id="projectTitle" placeholder="اسم المشروع"><input id="projectService" placeholder="نوع الخدمة">
+      <textarea id="projectDescription" placeholder="وصف المشروع"></textarea>
+      <input id="projectBudget" type="number" min="0" placeholder="الميزانية بالنايرا">
+      <input id="projectDue" type="date"><button onclick="addProject()">إضافة مشروع</button>
+      <div id="projectsList"></div>
+    </section>
+
+    <section id="finance" class="card hidden">
+      <h3>الإيرادات والمصروفات</h3>
+      <select id="financeType"><option value="income">إيراد</option><option value="expense">مصروف</option></select>
+      <input id="financeAmount" type="number" min="0" step="0.01" placeholder="المبلغ">
+      <input id="financeCategory" placeholder="التصنيف"><input id="financeDate" type="date">
+      <input id="financeDescription" placeholder="الوصف"><input id="receipt" type="file" accept="image/*,.pdf">
+      <button onclick="addFinance()">حفظ العملية</button><div id="financeList"></div>
+    </section>
+
+    <section id="history" class="card hidden"><h3>سجل العمليات</h3><div id="historyList"></div></section>
+
+    <section id="marketAdmin" class="card hidden">
+      <h3>إدارة السوق</h3>
+      <h4>إضافة بائع</h4>
+      <input id="sellerName" placeholder="اسم البائع"><input id="sellerPhone" placeholder="رقم الهاتف">
+      <input id="sellerOwner" placeholder="معرف حساب البائع UUID (اختياري)">
+      <button onclick="addSeller()">إضافة بائع</button><div id="sellersList"></div>
+      <hr><h4>إضافة منتج</h4>
+      <select id="productSeller"><option value="">اختر البائع</option></select>
+      <input id="productTitle" placeholder="اسم المنتج"><textarea id="productDescription" placeholder="وصف المنتج"></textarea>
+      <input id="productPrice" type="number" min="0" placeholder="السعر بالنايرا"><input id="productImage" placeholder="رابط الصورة">
+      <button onclick="addProduct()">إضافة المنتج</button><div id="adminProducts"></div>
+    </section>
+
+    <section id="reviewsAdmin" class="card hidden">
+      <h3>مراجعة التقييمات</h3><h4>تقييمات المنتجات</h4><div id="productReviewsAdmin"></div>
+      <hr><h4>تقييمات البائعين</h4><div id="sellerReviewsAdmin"></div>
+    </section>
+    <div id="message" class="muted"></div>
+  </div>
 </main>
 
 <script>
+"use strict";
 const SUPABASE_URL = "https://cafvkonbubrqsabsywry.supabase.co";
 const SUPABASE_KEY = "sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
-const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
+let isDirector = false;
+let marketProducts = [];
+let marketSellers = [];
+let selectedProduct = null;
 
-function msg(t){document.getElementById('message').textContent=t}
-function val(id){return document.getElementById(id).value.trim()}
+function el(id){return document.getElementById(id);}
+function val(id){return (el(id)?.value || "").trim();}
+function msg(text){el("message").textContent = text;}
+function marketMsg(text){el("marketMessage").textContent = text;}
+function safe(value){return String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function money(value){return Number(value||0).toLocaleString("en-NG");}
 function show(id){
- document.querySelectorAll('section').forEach(x=>x.classList.add('hidden'));
- document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll("#app section").forEach(s=>s.classList.add("hidden"));
+  el(id)?.classList.remove("hidden");
 }
-function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showMarketAuth(){el("marketLogin").classList.remove("hidden");}
+function hideMarketAuth(){el("marketLogin").classList.add("hidden");}
+function backToMarket(){el("productDetails").classList.add("hidden");el("market").classList.remove("hidden");}
+function requireDirector(){if(!isDirector||!currentUser){msg("هذه الوظيفة متاحة للمدير المعتمد فقط.");return false;}return true;}
 
 async function login(){
- const email=val('email'), password=document.getElementById('password').value;
- document.getElementById('loginMsg').textContent='جارٍ التحقق...';
- const {data,error}=await db.auth.signInWithPassword({email,password});
- if(error){document.getElementById('loginMsg').textContent='تعذر الدخول: '+error.message;return}
- currentUser=data.user;
- await verifyDirector();
+  const email=val("email"), password=el("password").value;
+  el("loginMsg").textContent="جارٍ التحقق...";
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    currentUser=data.user;
+    await verifyDirector();
+  }catch(e){el("loginMsg").textContent="تعذر الدخول: "+e.message;}
 }
 async function verifyDirector(){
- const {data,error}=await db.rpc('is_active_director');
- if(error || data!==true){
-  await db.auth.signOut();
-  document.getElementById('loginMsg').textContent='هذا الحساب غير معتمد كمدير نشط.';
-  return;
- }
- document.getElementById('login').classList.add('hidden');
- document.getElementById('app').classList.remove('hidden');
- document.getElementById('welcome').textContent='مرحباً، '+(currentUser.email||'المدير');
- await refreshAll();
+  const {data,error}=await db.rpc("is_active_director");
+  if(error||data!==true){
+    await db.auth.signOut();currentUser=null;isDirector=false;
+    el("loginMsg").textContent="هذا الحساب غير معتمد كمدير نشط.";return;
+  }
+  isDirector=true;
+  el("login").classList.add("hidden");el("app").classList.remove("hidden");
+  el("welcome").textContent="مرحباً، "+(currentUser.email||"المدير");
+  await refreshAll();await loadMarket();await loadMarketAdmin();await loadReviewsAdmin();
 }
-async function logout(){
- await db.auth.signOut();
- location.reload();
+async function logout(){await db.auth.signOut();currentUser=null;isDirector=false;location.reload();}
+async function customerLogin(){
+  el("customerMessage").textContent="جارٍ تسجيل الدخول...";
+  const {data,error}=await db.auth.signInWithPassword({email:val("customerEmail"),password:el("customerPassword").value});
+  if(error){el("customerMessage").textContent="تعذر الدخول: "+error.message;return;}
+  currentUser=data.user;isDirector=false;el("customerMessage").textContent="تم تسجيل الدخول. يمكنك إرسال التقييمات.";
+}
+async function customerRegister(){
+  const email=val("customerEmail"),password=el("customerPassword").value;
+  if(!email||password.length<6){el("customerMessage").textContent="أدخل البريد وكلمة مرور من 6 أحرف على الأقل.";return;}
+  const {data,error}=await db.auth.signUp({email,password});
+  if(error){el("customerMessage").textContent="تعذر إنشاء الحساب: "+error.message;return;}
+  currentUser=data.user;
+  el("customerMessage").textContent=data.session?"تم إنشاء الحساب وتسجيل الدخول.":"تم إنشاء الحساب. تحقق من بريدك لتأكيده ثم سجّل الدخول.";
 }
 async function logAction(action,entity,details={}){
- const {error}=await db.from('am_activity_log').insert({
-  actor_id:currentUser.id,action,entity_type:entity,details
- });
- if(error) console.error('Activity log:',error.message);
+  if(!currentUser)return;
+  const {error}=await db.from("am_activity_log").insert({actor_id:currentUser.id,action,entity_type:entity,details});
+  if(error)console.warn("Activity log:",error.message);
 }
-async function loadTable(table,order='created_at'){
- const {data,error}=await db.from(table).select('*').order(order,{ascending:false});
- if(error) throw error;
- return data||[];
+async function loadTable(table,order="created_at"){
+  const {data,error}=await db.from(table).select("*").order(order,{ascending:false});
+  if(error)throw error;return data||[];
 }
 async function refreshAll(){
- try{
-  const [emps,clients,projects,finance,history]=await Promise.all([
-   loadTable('am_ai_employees'),loadTable('am_clients'),
-   loadTable('am_projects'),loadTable('am_finance_transactions','transaction_date'),
-   loadTable('am_activity_log')
-  ]);
-  document.getElementById('nEmployees').textContent=emps.length;
-  document.getElementById('nClients').textContent=clients.length;
-  document.getElementById('nProjects').textContent=projects.length;
-  const income=finance.filter(x=>x.type==='income').reduce((s,x)=>s+Number(x.amount),0);
-  const expense=finance.filter(x=>x.type==='expense').reduce((s,x)=>s+Number(x.amount),0);
-  document.getElementById('balance').textContent=(income-expense).toLocaleString();
-  document.getElementById('employeesList').innerHTML=emps.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.code)}<div class="muted">${safe(x.job_title)} | ${safe(x.language)} | ${safe(x.status)}</div></div>`).join('');
-  document.getElementById('clientsList').innerHTML=clients.map(x=>`<div class="item"><b>${safe(x.name)}</b><div class="muted">${safe(x.business_name)} | ${safe(x.state)} | ${safe(x.phone)}</div></div>`).join('');
-  document.getElementById('projectClient').innerHTML='<option value="">اختر العميل</option>'+clients.map(x=>`<option value="${x.id}">${safe(x.name)}</option>`).join('');
-  document.getElementById('projectsList').innerHTML=projects.map(x=>`<div class="item"><b>${safe(x.title)}</b><div class="muted">${safe(x.service)} | ${safe(x.status)} | ${Number(x.budget||0).toLocaleString()} NGN</div></div>`).join('');
-  document.getElementById('financeList').innerHTML=finance.map(x=>`<div class="item"><b>${x.type==='income'?'إيراد':'مصروف'}: ${Number(x.amount).toLocaleString()} ${safe(x.currency)}</b><div class="muted">${safe(x.category)} | ${safe(x.transaction_date)} | ${safe(x.description)}</div></div>`).join('');
-  document.getElementById('historyList').innerHTML=history.map(x=>`<div class="item">${safe(x.action)}<div class="muted">${safe(x.entity_type)} | ${safe(x.created_at)}</div></div>`).join('');
-  msg('تم تحديث البيانات من قاعدة البيانات.');
- }catch(e){msg('خطأ في تحميل البيانات: '+e.message)}
+  if(!requireDirector())return;
+  try{
+    const [emps,clients,projects,finance,history]=await Promise.all([
+      loadTable("am_ai_employees"),loadTable("am_clients"),loadTable("am_projects"),
+      loadTable("am_finance_transactions","transaction_date"),loadTable("am_activity_log")
+    ]);
+    el("nEmployees").textContent=emps.length;el("nClients").textContent=clients.length;el("nProjects").textContent=projects.length;
+    const income=finance.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0);
+    const expense=finance.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0);
+    el("balance").textContent=money(income-expense);
+    el("employeesList").innerHTML=emps.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.code)}<div class="muted">${safe(x.job_title)} | ${safe(x.language)} | ${safe(x.status)}</div></div>`).join("");
+    el("clientsList").innerHTML=clients.map(x=>`<div class="item"><b>${safe(x.name)}</b><div class="muted">${safe(x.business_name)} | ${safe(x.state)} | ${safe(x.phone)}</div></div>`).join("");
+    el("projectClient").innerHTML='<option value="">اختر العميل</option>'+clients.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join("");
+    el("projectsList").innerHTML=projects.map(x=>`<div class="item"><b>${safe(x.title)}</b><div class="muted">${safe(x.service)} | ${safe(x.status)} | ${money(x.budget)} NGN</div></div>`).join("");
+    el("financeList").innerHTML=finance.map(x=>`<div class="item"><b>${x.type==="income"?"إيراد":"مصروف"}: ${money(x.amount)} ${safe(x.currency)}</b><div class="muted">${safe(x.category)} | ${safe(x.transaction_date)} | ${safe(x.description)}</div></div>`).join("");
+    el("historyList").innerHTML=history.map(x=>`<div class="item">${safe(x.action)}<div class="muted">${safe(x.entity_type)} | ${safe(x.created_at)}</div></div>`).join("");
+    msg("تم تحديث البيانات.");
+  }catch(e){msg("خطأ في تحميل البيانات: "+e.message);}
 }
 async function addEmployee(){
- try{
-  const row={code:val('empCode'),name:val('empName'),department:val('empDept'),job_title:val('empJob'),language:val('empLang'),instructions:val('empInstructions'),status:'active'};
-  if(!row.code||!row.name) return msg('أدخل رمز الموظف واسمه.');
-  const {error}=await db.from('am_ai_employees').insert(row);
-  if(error) throw error;
-  await logAction('إضافة موظف ذكاء اصطناعي','ai_employee',{name:row.name,code:row.code});
-  ['empCode','empName','empDept','empJob','empInstructions'].forEach(id=>document.getElementById(id).value='');
-  msg('تمت إضافة الموظف.'); await refreshAll();
- }catch(e){msg('تعذر إضافة الموظف: '+e.message)}
+  if(!requireDirector())return;
+  try{
+    const row={code:val("empCode"),name:val("empName"),department:val("empDept"),job_title:val("empJob"),language:val("empLang"),instructions:val("empInstructions"),status:"active"};
+    if(!row.code||!row.name){msg("أدخل رمز الموظف واسمه.");return;}
+    const {error}=await db.from("am_ai_employees").insert(row);if(error)throw error;
+    await logAction("إضافة موظف ذكاء اصطناعي","ai_employee",{name:row.name,code:row.code});
+    ["empCode","empName","empDept","empJob","empInstructions"].forEach(id=>el(id).value="");
+    msg("تمت إضافة الموظف.");await refreshAll();
+  }catch(e){msg("تعذر إضافة الموظف: "+e.message);}
 }
 async function addClient(){
- try{
-  const row={name:val('clientName'),business_name:val('businessName'),phone:val('clientPhone'),whatsapp:val('clientWhatsapp'),email:val('clientEmail'),state:val('clientState'),notes:val('clientNotes'),country:'Nigeria',created_by:currentUser.id};
-  if(!row.name) return msg('أدخل اسم العميل.');
-  const {error}=await db.from('am_clients').insert(row);
-  if(error) throw error;
-  await logAction('إضافة عميل','client',{name:row.name});
-  ['clientName','businessName','clientPhone','clientWhatsapp','clientEmail','clientState','clientNotes'].forEach(id=>document.getElementById(id).value='');
-  msg('تمت إضافة العميل.'); await refreshAll();
- }catch(e){msg('تعذر إضافة العميل: '+e.message)}
+  if(!requireDirector())return;
+  try{
+    const row={name:val("clientName"),business_name:val("businessName"),phone:val("clientPhone"),whatsapp:val("clientWhatsapp"),email:val("clientEmail"),state:val("clientState"),notes:val("clientNotes"),country:"Nigeria",created_by:currentUser.id};
+    if(!row.name){msg("أدخل اسم العميل.");return;}
+    const {error}=await db.from("am_clients").insert(row);if(error)throw error;
+    await logAction("إضافة عميل","client",{name:row.name});
+    ["clientName","businessName","clientPhone","clientWhatsapp","clientEmail","clientState","clientNotes"].forEach(id=>el(id).value="");
+    msg("تمت إضافة العميل.");await refreshAll();
+  }catch(e){msg("تعذر إضافة العميل: "+e.message);}
 }
 async function addProject(){
- try{
-  const row={client_id:val('projectClient'),title:val('projectTitle'),service:val('projectService'),description:val('projectDescription'),budget:Number(val('projectBudget')||0),currency:'NGN',due_date:val('projectDue')||null,created_by:currentUser.id,status:'pending'};
-  if(!row.client_id||!row.title) return msg('اختر العميل واكتب اسم المشروع.');
-  const {error}=await db.from('am_projects').insert(row);
-  if(error) throw error;
-  await logAction('إضافة مشروع','project',{title:row.title});
-  ['projectTitle','projectService','projectDescription','projectBudget','projectDue'].forEach(id=>document.getElementById(id).value='');
-  msg('تمت إضافة المشروع.'); await refreshAll();
- }catch(e){msg('تعذر إضافة المشروع: '+e.message)}
+  if(!requireDirector())return;
+  try{
+    const row={client_id:val("projectClient"),title:val("projectTitle"),service:val("projectService"),description:val("projectDescription"),budget:Number(val("projectBudget")||0),currency:"NGN",due_date:val("projectDue")||null,created_by:currentUser.id,status:"pending"};
+    if(!row.client_id||!row.title){msg("اختر العميل واكتب اسم المشروع.");return;}
+    const {error}=await db.from("am_projects").insert(row);if(error)throw error;
+    await logAction("إضافة مشروع","project",{title:row.title});
+    ["projectTitle","projectService","projectDescription","projectBudget","projectDue"].forEach(id=>el(id).value="");
+    msg("تمت إضافة المشروع.");await refreshAll();
+  }catch(e){msg("تعذر إضافة المشروع: "+e.message);}
 }
 async function addFinance(){
- try{
-  const amount=Number(val('financeAmount'));
-  if(!amount||amount<=0) return msg('أدخل مبلغاً صحيحاً أكبر من صفر.');
-  const row={type:val('financeType'),amount,currency:'NGN',category:val('financeCategory'),transaction_date:val('financeDate')||new Date().toISOString().slice(0,10),description:val('financeDescription'),recorded_by:currentUser.id};
-  const {data,error}=await db.from('am_finance_transactions').insert(row).select().single();
-  if(error) throw error;
-  const file=document.getElementById('receipt').files[0];
-  if(file){
-   const cleanName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-   const path=currentUser.id+'/'+data.id+'/'+Date.now()+'_'+cleanName;
-   const upload=await db.storage.from('am-transaction-receipts').upload(path,file);
-   if(upload.error) throw upload.error;
-   const saved=await db.from('am_transaction_receipts').insert({transaction_id:data.id,storage_path:path,file_name:file.name,mime_type:file.type,uploaded_by:currentUser.id});
-   if(saved.error) throw saved.error;
-  }
-  await logAction('تسجيل عملية مالية','finance',{type:row.type,amount:row.amount});
-  ['financeAmount','financeCategory','financeDescription'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('receipt').value='';
-  msg('تم حفظ العملية المالية.'); await refreshAll();
- }catch(e){msg('تعذر حفظ العملية: '+e.message)}
+  if(!requireDirector())return;
+  let insertedId=null;
+  try{
+    const amount=Number(val("financeAmount"));
+    if(!amount||amount<=0){msg("أدخل مبلغاً صحيحاً أكبر من صفر.");return;}
+    const row={type:val("financeType"),amount,currency:"NGN",category:val("financeCategory"),transaction_date:val("financeDate")||new Date().toISOString().slice(0,10),description:val("financeDescription"),recorded_by:currentUser.id};
+    const {data,error}=await db.from("am_finance_transactions").insert(row).select().single();
+    if(error)throw error;insertedId=data.id;
+    const file=el("receipt").files[0];
+    if(file){
+      const cleanName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+      const path=currentUser.id+"/"+data.id+"/"+Date.now()+"_"+cleanName;
+      const upload=await db.storage.from("am-transaction-receipts").upload(path,file);
+      if(upload.error)throw new Error("حُفظت العملية لكن تعذر رفع الإيصال: "+upload.error.message);
+      const saved=await db.from("am_transaction_receipts").insert({transaction_id:data.id,storage_path:path,file_name:file.name,mime_type:file.type,uploaded_by:currentUser.id});
+      if(saved.error)throw new Error("حُفظت العملية ورُفع الملف لكن تعذر تسجيل الإيصال: "+saved.error.message);
+    }
+    await logAction("تسجيل عملية مالية","finance",{type:row.type,amount:row.amount});
+    ["financeAmount","financeCategory","financeDescription"].forEach(id=>el(id).value="");el("receipt").value="";
+    msg("تم حفظ العملية المالية.");await refreshAll();
+  }catch(e){msg((insertedId?"تم إنشاء العملية المالية، لكن":"تعذر حفظ العملية:")+ " "+e.message);if(insertedId)await refreshAll();}
 }
-(async function init(){
- const {data}=await db.auth.getSession();
- if(data.session){currentUser=data.session.user;await verifyDirector()}
-})();
+
+/* Marketplace: public visitors can browse active listings; auth and RLS control writes. */
+async function loadMarket(){
+  marketMsg("جارٍ تحميل السوق...");
+  try{
+    const [p,s]=await Promise.all([
+      db.from("am_market_products").select("*").eq("status","active").order("created_at",{ascending:false}),
+      db.from("am_market_sellers").select("*").eq("status","active").order("created_at",{ascending:false})
+    ]);
+    if(p.error)throw p.error;if(s.error)throw s.error;
+    marketProducts=p.data||[];marketSellers=s.data||[];
+    const opts='<option value="">كل البائعين</option>'+marketSellers.map(x=>`<option value="${safe(x.id)}">${safe(x.display_name)}</option>`).join("");
+    el("marketSellerFilter").innerHTML=opts;
+    renderMarket();marketMsg(marketProducts.length?"":"لا توجد منتجات منشورة حالياً.");
+  }catch(e){marketMsg("تعذر تحميل السوق: "+e.message);}
+}
+function renderMarket(){
+  const q=val("search").toLowerCase(),seller=val("marketSellerFilter");
+  const rows=marketProducts.filter(p=>(!seller||p.seller_id===seller)&&(!q||(p.title||"").toLowerCase().includes(q)||(p.description||"").toLowerCase().includes(q)));
+  el("marketProducts").innerHTML=rows.map(p=>{
+    const s=marketSellers.find(x=>x.id===p.seller_id);
+    const image=p.image_url?`<img src="${safe(p.image_url)}" alt="${safe(p.title)}" onerror="this.style.display='none'">`:"";
+    return `<article class="product">${image}<h4>${safe(p.title)}</h4><div class="muted">${safe(s?.display_name||"بائع")}</div><p>${safe(p.description||"")}</p><div class="price">${money(p.price)} ${safe(p.currency||"NGN")}</div><button onclick="openProduct('${safe(p.id)}')">عرض المنتج والتقييمات</button></article>`;
+  }).join("")||'<p class="muted">لا توجد نتائج مطابقة.</p>';
+}
+async function openProduct(id){
+  selectedProduct=marketProducts.find(p=>p.id===id);if(!selectedProduct)return;
+  el("market").classList.add("hidden");el("marketLogin").classList.add("hidden");el("productDetails").classList.remove("hidden");
+  const seller=marketSellers.find(x=>x.id===selectedProduct.seller_id);
+  el("productDetailContent").innerHTML=`<h3>${safe(selectedProduct.title)}</h3>${selectedProduct.image_url?`<img src="${safe(selectedProduct.image_url)}" alt="" style="width:100%;max-height:260px;object-fit:contain">`:""}<p>${safe(selectedProduct.description||"")}</p><div class="price">${money(selectedProduct.price)} ${safe(selectedProduct.currency||"NGN")}</div><p class="muted">البائع: ${safe(seller?.display_name||"")}</p>`;
+  await loadProductReviews();await loadSellerReviews();
+}
+async function loadProductReviews(){
+  if(!selectedProduct)return;
+  const {data,error}=await db.from("am_market_product_reviews").select("*").eq("product_id",selectedProduct.id).eq("status","approved").order("created_at",{ascending:false});
+  if(error){el("productReviews").textContent="تعذر تحميل التقييمات: "+error.message;return;}
+  el("productReviews").innerHTML='<h4>آراء العملاء</h4>'+(data||[]).map(r=>`<div class="item"><span class="stars">${"★".repeat(Number(r.stars)||0)}</span><p>${safe(r.comment)}</p>${r.seller_reply?`<p class="muted">رد البائع: ${safe(r.seller_reply)}</p>`:""}</div>`).join("")||'<p class="muted">لا توجد تقييمات منشورة.</p>';
+}
+async function loadSellerReviews(){
+  if(!selectedProduct)return;
+  const {data,error}=await db.from("am_market_seller_reviews").select("*").eq("seller_id",selectedProduct.seller_id).eq("status","approved").order("created_at",{ascending:false});
+  if(error){el("sellerReviews").textContent="تعذر تحميل التقييمات: "+error.message;return;}
+  el("sellerReviews").innerHTML='<h4>آراء العملاء عن البائع</h4>'+(data||[]).map(r=>`<div class="item"><span class="stars">${"★".repeat(Number(r.stars)||0)}</span><p>${safe(r.comment)}</p>${r.seller_reply?`<p class="muted">رد البائع: ${safe(r.seller_reply)}</p>`:""}</div>`).join("")||'<p class="muted">لا توجد تقييمات منشورة.</p>';
+}
+async function submitProductReview(){
+  if(!currentUser){alert("سجّل دخول العميل أولاً.");showMarketAuth();return;}
+  if(!selectedProduct)return;
+  const comment=val("productComment");if(!comment){alert("اكتب تعليقك أولاً.");return;}
+  const {error}=await db.from("am_market_product_reviews").insert({product_id:selectedProduct.id,seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("productStars")),comment,status:"pending"});
+  if(error){alert("تعذر إرسال التقييم: "+error.message);return;}
+  el("productComment").value="";alert("تم إرسال تقييمك للمراجعة قبل النشر.");
+}
+async function submitSellerReview(){
+  if(!currentUser){alert("سجّل دخول العميل أولاً.");showMarketAuth();return;}
+  if(!selectedProduct)return;
+  const comment=val("sellerComment");if(!comment){alert("اكتب تعليقك أولاً.");return;}
+  const {error}=await db.from("am_market_seller_reviews").insert({seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("sellerStars")),comment,status:"pending"});
+  if(error){alert("تعذر إرسال التقييم: "+error.message);return;}
+  el("sellerComment").value="";alert("تم إرسال تقييم البائع للمراجعة قبل النشر.");
+}
+async function loadMarketAdmin(){
+  if(!requireDirector())return;
+  try{
+    const [s,p]=await Promise.all([db.from("am_market_sellers").select("*").order("created_at",{ascending:false}),db.from("am_market_products").select("*").order("created_at",{ascending:false})]);
+    if(s.error)throw s.error;if(p.error)throw p.error;
+    const sellers=s.data||[],products=p.data||[];
+    el("sellersList").innerHTML=sellers.map(x=>`<div class="item"><b>${safe(x.display_name)}</b> <span class="pill">${safe(x.status)}</span><div class="muted">${safe(x.phone)}</div></div>`).join("")||'<p class="muted">لا يوجد بائعون.</p>';
+    el("productSeller").innerHTML='<option value="">اختر البائع</option>'+sellers.filter(x=>x.status==="active").map(x=>`<option value="${safe(x.id)}">${safe(x.display_name)}</option>`).join("");
+    el("adminProducts").innerHTML=products.map(x=>`<div class="item"><b>${safe(x.title)}</b> — ${money(x.price)} NGN <span class="pill">${safe(x.status)}</span></div>`).join("")||'<p class="muted">لا توجد منتجات.</p>';
+  }catch(e){msg("تعذر تحميل إدارة السوق: "+e.message);}
+}
+async function addSeller(){
+  if(!requireDirector())return;
+  try{
+    const row={display_name:val("sellerName"),phone:val("sellerPhone"),owner_user_id:val("sellerOwner")||null,status:"active"};
+    if(!row.display_name){msg("أدخل اسم البائع.");return;}
+    const {error}=await db.from("am_market_sellers").insert(row);if(error)throw error;
+    await logAction("إضافة بائع","market_seller",{name:row.display_name});
+    ["sellerName","sellerPhone","sellerOwner"].forEach(id=>el(id).value="");
+    msg("تمت إضافة البائع.");await loadMarket();await loadMarketAdmin();
+  }catch(e){msg("تعذر إضافة البائع: "+e.message);}
+}
+async function addProduct(){
+  if(!requireDirector())return;
+  try{
+    const row={seller_id:val("productSeller"),title:val("productTitle"),description:val("productDescription"),price:Number(val("productPrice")),currency:"NGN",image_url:val("productImage")||null,status:"active"};
+    if(!row.seller_id||!row.title||!Number.isFinite(row.price)||row.price<0){msg("اختر البائع واكتب اسم المنتج وسعراً صحيحاً.");return;}
+    const {error}=await db.from("am_market_products").insert(row);if(error)throw error;
+    await logAction("إضافة منتج للسوق","market_product",{title:row.title});
+    ["productTitle","productDescription","productPrice","productImage"].forEach(id=>el(id).value="");
+    msg("تمت إضافة المنتج.");await loadMarket();await loadMarketAdmin();
+  }catch(e){msg("تعذر إضافة المنتج: "+e.message);}
+}
+async function loadReviewsAdmin(){
+  if(!requireDirector())return;
+  try{
+    const [pr,sr]=await Promise.all([
+      db.from("am_market_product_reviews").select("*").order("created_at",{ascending:false}),
+      db.from("am_market_seller_reviews").select("*").order("created_at",{ascending:false})
+    ]);
+    if(pr.error)throw pr.error;if(sr.error)throw sr.error;
+    el("productReviewsAdmin").innerHTML=(pr.data||[]).map(r=>reviewAdminCard(r,"am_market_product_reviews")).join("")||'<p class="muted">لا توجد تقييمات.</p>';
+    el("sellerReviewsAdmin").innerHTML=(sr.data||[]).map(r=>reviewAdminCard(r,"am_market_seller_reviews")).join("")||'<p class="muted">لا توجد تقييمات.</p>';
+  }catch(e){msg("تعذر تحميل التقييمات: "+e.message);}
+}
+function reviewAdminCard(r,table){
+  const label=table==="am_market_product_reviews"?"تقييم منتج":"تقييم بائع";
+  return `<div class="item"><b>${label}</b> <span class="stars">${"★".repeat(Number(r.stars)||0)}</span> <span class="pill">${safe(r.status)}</span><p>${safe(r.comment)}</p>${r.seller_reply?`<p class="muted">رد البائع: ${safe(r.seller_reply)}</p>`:""}<div class="actions"><button onclick="moderateReview('${table}','${safe(r.id)}','approved')">قبول ونشر</button><button class="danger" onclick="moderateReview('${table}','${safe(r.id)}','rejected')">رفض</button></div></div>`;
+}
+async function moderateReview(table,id,status){
+  if(!requireDirector())return;
+  const {error}=await db.from(table).update({status}).eq("id",id);
+  if(error){msg("تعذر تحديث التقييم: "+error.message);return;}
+  msg(status==="approved"?"تم اعتماد التقييم.":"تم رفض التقييم.");
+  await loadReviewsAdmin();
+}
+window.addEventListener("load",()=>{loadMarket();});
 </script>
 </body>
 </html>
