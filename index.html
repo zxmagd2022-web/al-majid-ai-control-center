@@ -5,325 +5,261 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AL MAJID AI CONTROL CENTER</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f2f6f3;color:#18251e;font-family:Arial,Tahoma,sans-serif}
-header{background:#10291d;color:white;padding:15px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px}
-.brand img{width:48px;height:48px;object-fit:contain;background:white;border-radius:8px}
-.brand h2{font-size:16px;margin:0 0 5px}
-.brand small{color:#b8d9c5}
-button,.btn{border:0;border-radius:8px;padding:10px 13px;background:#087a43;color:white;font-weight:bold;cursor:pointer}
-.secondary{background:#e5eee8;color:#17432d}
-.danger{background:#b52d36}
-nav{display:flex;gap:6px;padding:10px;background:white;overflow-x:auto}
-nav button{white-space:nowrap;background:#e6eee8;color:#17432d}
-nav button.active{background:#087a43;color:white}
-main{max-width:1100px;margin:auto;padding:14px}
-.section{display:none}.section.active{display:block}
-h1{font-size:22px;margin:10px 0}
-h3{margin-top:0}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:15px 0}
-.card,.panel{background:white;padding:15px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 9px #0000000a}
-.metric{font-size:25px;font-weight:bold;color:#087a43;margin-top:8px}
-.muted{color:#718078;font-size:13px}
-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
-label{font-size:13px;font-weight:bold}
-input,select,textarea{width:100%;padding:11px;border:1px solid #ccd8d0;border-radius:8px;font:inherit;margin-top:5px;background:white}
-textarea{min-height:75px}
-.tablewrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-td,th{text-align:right;padding:9px;border-bottom:1px solid #e6ece8;white-space:nowrap}
-.notice{background:#eaf5ee;border-right:4px solid #087a43;padding:12px;border-radius:8px;font-size:13px;margin:12px 0}
-.actions{display:flex;gap:7px;flex-wrap:wrap}
-footer{text-align:center;padding:20px;color:#778078;font-size:12px}
-a{color:#087a43}
-@media(max-width:500px){main{padding:10px}.brand h2{font-size:14px}}
+header{background:#10291d;color:white;padding:18px}
+header h2{margin:0 0 6px}
+header small{color:#c9dfd1}
+main{max-width:1100px;margin:auto;padding:15px}
+.card{background:white;border-radius:13px;padding:16px;margin:12px 0;box-shadow:0 2px 9px #0000000d}
+h3{margin-top:0;color:#17432d}
+input,select,textarea,button{font:inherit;width:100%;padding:12px;margin:6px 0;border:1px solid #ccd8cf;border-radius:8px}
+button{background:#176b42;color:white;border:0;font-weight:bold;cursor:pointer}
+button.secondary{background:#e5eee8;color:#17432d}
+nav{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+nav button{font-size:13px;padding:10px 4px}
+.hidden{display:none}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat{background:#eaf3ed;padding:14px;border-radius:10px}
+.stat strong{display:block;font-size:22px;margin-top:7px}
+.item{border-bottom:1px solid #e5eae6;padding:10px 0;overflow-wrap:anywhere}
+.muted{color:#68776d;font-size:13px}
+#message{padding:10px;color:#17432d}
 </style>
 </head>
 <body>
-
 <header>
- <div class="brand">
-  <img id="logo" alt="Al Majid">
-  <div>
-   <h2 id="brandTitle">مركز تحكم الماجد للذكاء الاصطناعي</h2>
-   <small>AL MAJID AI CONTROL CENTER</small>
-  </div>
- </div>
- <div class="actions">
-  <button class="secondary" id="languageBtn">English</button>
-  <label class="btn">رفع الشعار
-   <input id="logoFile" type="file" accept="image/*" hidden>
-  </label>
- </div>
+<h2>AL MAJID AI CONTROL CENTER</h2>
+<small>مركز إدارة وكالة الماجد للتسويق</small>
 </header>
+<main>
+<div id="login" class="card">
+<h3>دخول المدير</h3>
+<p class="muted">سجل الدخول ببريد المدير وكلمة المرور الخاصة بحساب Supabase.</p>
+<input id="email" type="email" placeholder="البريد الإلكتروني">
+<input id="password" type="password" placeholder="كلمة المرور">
+<button onclick="login()">تسجيل الدخول</button>
+<div id="loginMsg" class="muted"></div>
+</div>
 
-<nav id="nav">
- <button class="active" data-page="home">الرئيسية</button>
- <button data-page="employees">الموظفون</button>
- <button data-page="clients">العملاء</button>
- <button data-page="orders">الطلبات</button>
- <button data-page="finance">المالية</button>
- <button data-page="reports">التقارير</button>
- <button data-page="history">سجل العمليات</button>
+<div id="app" class="hidden">
+<div class="card">
+<div id="welcome">مرحباً بك في مركز التحكم</div>
+<button class="secondary" onclick="logout()">تسجيل الخروج</button>
+</div>
+<nav>
+<button onclick="show('home')">الرئيسية</button>
+<button onclick="show('employees')">الموظفون</button>
+<button onclick="show('clients')">العملاء</button>
+<button onclick="show('projects')">المشاريع</button>
+<button onclick="show('finance')">المالية</button>
+<button onclick="show('history')">السجل</button>
 </nav>
 
-<main>
-
-<section id="home" class="section active">
- <h1>لوحة الإدارة الرئيسية</h1>
- <p class="muted">مرحباً بك في وكالة الماجد للتسويق.</p>
- <div class="cards">
-  <div class="card">الموظفون<div class="metric" id="mEmployees">0</div></div>
-  <div class="card">العملاء<div class="metric" id="mClients">0</div></div>
-  <div class="card">الطلبات<div class="metric" id="mOrders">0</div></div>
-  <div class="card">الإيرادات<div class="metric" id="mIncome">0</div><small>NGN</small></div>
-  <div class="card">المصروفات<div class="metric" id="mExpense">0</div><small>NGN</small></div>
-  <div class="card">الرصيد<div class="metric" id="mBalance">0</div><small>NGN</small></div>
- </div>
- <div class="notice">نسخة أولية: تحفظ البيانات على هذا المتصفح والجهاز. الربط بقاعدة البيانات السحابية سيتم في مرحلة لاحقة.</div>
+<section id="home" class="card">
+<h3>لوحة المعلومات</h3>
+<div class="stats">
+<div class="stat">الموظفون<strong id="nEmployees">0</strong></div>
+<div class="stat">العملاء<strong id="nClients">0</strong></div>
+<div class="stat">المشاريع<strong id="nProjects">0</strong></div>
+<div class="stat">الرصيد (NGN)<strong id="balance">0</strong></div>
+</div>
+<button onclick="refreshAll()">تحديث البيانات</button>
 </section>
 
-<section id="employees" class="section">
- <h1>إدارة الموظفين</h1>
- <div class="panel">
-  <h3>إضافة موظف أو موظفة</h3>
-  <form id="employeeForm">
-   <label>الاسم<input name="name" required></label>
-   <label>الوظيفة<input name="job" required></label>
-   <label>النوع<select name="type"><option>موظف ذكاء اصطناعي</option><option>موظف بشري</option></select></label>
-   <label>الصلاحية<select name="permission">
-    <option>إدارة التسويق</option><option>إدارة العملاء</option>
-    <option>إدارة الطلبات</option><option>الإيرادات</option>
-    <option>المصروفات</option><option>التقارير</option><option>مدير النظام</option>
-   </select></label>
-   <button>إضافة الموظف</button>
-  </form>
- </div>
- <div class="panel"><h3>قائمة الموظفين</h3><div id="employeeList"></div></div>
+<section id="employees" class="card hidden">
+<h3>إدارة موظفي الذكاء الاصطناعي</h3>
+<input id="empCode" placeholder="رمز الموظف مثل AI01">
+<input id="empName" placeholder="اسم الموظف">
+<input id="empDept" placeholder="القسم">
+<input id="empJob" placeholder="المسمى الوظيفي">
+<select id="empLang"><option value="ar">العربية</option><option value="en">English</option><option value="ha">Hausa</option></select>
+<textarea id="empInstructions" placeholder="تعليمات ومهام الموظف"></textarea>
+<button onclick="addEmployee()">إضافة موظف</button>
+<div id="employeesList"></div>
 </section>
 
-<section id="clients" class="section">
- <h1>إدارة العملاء</h1>
- <div class="panel">
-  <h3>إضافة عميل</h3>
-  <form id="clientForm">
-   <label>اسم العميل<input name="name" required></label>
-   <label>رقم الهاتف<input name="phone"></label>
-   <label>النشاط التجاري<input name="business"></label>
-   <label>المدينة<input name="city" placeholder="Kano"></label>
-   <button>حفظ العميل</button>
-  </form>
- </div>
- <div class="panel"><h3>قائمة العملاء</h3><div id="clientList"></div></div>
+<section id="clients" class="card hidden">
+<h3>إدارة العملاء</h3>
+<input id="clientName" placeholder="اسم العميل">
+<input id="businessName" placeholder="اسم الشركة أو النشاط">
+<input id="clientPhone" placeholder="رقم الهاتف">
+<input id="clientWhatsapp" placeholder="رقم واتساب">
+<input id="clientEmail" placeholder="البريد الإلكتروني">
+<input id="clientState" placeholder="الولاية في نيجيريا">
+<textarea id="clientNotes" placeholder="ملاحظات"></textarea>
+<button onclick="addClient()">إضافة عميل</button>
+<div id="clientsList"></div>
 </section>
 
-<section id="orders" class="section">
- <h1>إدارة الطلبات</h1>
- <div class="panel">
-  <h3>إضافة طلب جديد</h3>
-  <form id="orderForm">
-   <label>اسم العميل<input name="client" required></label>
-   <label>الخدمة المطلوبة<input name="service" required></label>
-   <label>قيمة الطلب بالنايرا<input name="amount" type="number" min="0"></label>
-   <label>حالة الطلب<select name="status">
-    <option>جديد</option><option>قيد التنفيذ</option><option>مكتمل</option><option>ملغي</option>
-   </select></label>
-   <button>حفظ الطلب</button>
-  </form>
- </div>
- <div class="panel"><h3>قائمة الطلبات</h3><div id="orderList"></div></div>
+<section id="projects" class="card hidden">
+<h3>إدارة المشاريع</h3>
+<select id="projectClient"><option value="">اختر العميل</option></select>
+<input id="projectTitle" placeholder="اسم المشروع">
+<input id="projectService" placeholder="نوع الخدمة">
+<textarea id="projectDescription" placeholder="وصف المشروع"></textarea>
+<input id="projectBudget" type="number" min="0" placeholder="الميزانية بالنايرا">
+<input id="projectDue" type="date">
+<button onclick="addProject()">إضافة مشروع</button>
+<div id="projectsList"></div>
 </section>
 
-<section id="finance" class="section">
- <h1>الإيرادات والمصروفات</h1>
- <div class="notice">سجّل الإيرادات والمصروفات وأرفق إيصال التحويل إن وجد.</div>
- <div class="panel">
-  <h3>تسجيل عملية مالية</h3>
-  <form id="financeForm">
-   <label>نوع العملية<select name="type"><option value="income">إيراد</option><option value="expense">مصروف</option></select></label>
-   <label>المبلغ بالنايرا<input name="amount" type="number" min="1" required></label>
-   <label>البيان<input name="description" required></label>
-   <label>إيصال التحويل<input name="receipt" type="file" accept="image/*,.pdf"></label>
-   <button>حفظ العملية</button>
-  </form>
- </div>
- <div class="panel"><h3>السجل المالي</h3><div id="financeList"></div></div>
+<section id="finance" class="card hidden">
+<h3>الإيرادات والمصروفات</h3>
+<select id="financeType">
+<option value="income">إيراد</option>
+<option value="expense">مصروف</option>
+</select>
+<input id="financeAmount" type="number" min="1" placeholder="المبلغ بالنايرا">
+<input id="financeCategory" placeholder="التصنيف">
+<input id="financeDate" type="date">
+<input id="financeDescription" placeholder="البيان أو الوصف">
+<label>إرفاق إيصال التحويل (اختياري)</label>
+<input id="receipt" type="file" accept="image/*,.pdf">
+<button onclick="addFinance()">حفظ العملية</button>
+<div id="financeList"></div>
 </section>
 
-<section id="reports" class="section">
- <h1>التقارير</h1>
- <div class="panel" id="reportContent"></div>
- <button id="exportBtn">تنزيل نسخة احتياطية</button>
+<section id="history" class="card hidden">
+<h3>سجل العمليات</h3>
+<div id="historyList"></div>
 </section>
-
-<section id="history" class="section">
- <h1>سجل العمليات</h1>
- <div class="panel"><div id="historyList"></div></div>
-</section>
-
+<div id="message"></div>
+</div>
 </main>
-<footer>AL MAJID AI CONTROL CENTER · NIGERIA · 2026</footer>
 
 <script>
-const $=id=>document.getElementById(id);
-const keys=["employees","clients","orders","finance","history"];
-let db={};
+const SUPABASE_URL = "https://cafvkonbubrqsabsywry.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
+const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser = null;
 
-function load(){
- keys.forEach(k=>{
-  try{db[k]=JSON.parse(localStorage.getItem("alm_"+k)||"[]")}
-  catch(e){db[k]=[]}
- });
+function msg(t){document.getElementById('message').textContent=t}
+function val(id){return document.getElementById(id).value.trim()}
+function show(id){
+ document.querySelectorAll('section').forEach(x=>x.classList.add('hidden'));
+ document.getElementById(id).classList.remove('hidden');
 }
-function persist(){
+function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+async function login(){
+ const email=val('email'), password=document.getElementById('password').value;
+ document.getElementById('loginMsg').textContent='جارٍ التحقق...';
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+ if(error){document.getElementById('loginMsg').textContent='تعذر الدخول: '+error.message;return}
+ currentUser=data.user;
+ await verifyDirector();
+}
+async function verifyDirector(){
+ const {data,error}=await db.rpc('is_active_director');
+ if(error || data!==true){
+  await db.auth.signOut();
+  document.getElementById('loginMsg').textContent='هذا الحساب غير معتمد كمدير نشط.';
+  return;
+ }
+ document.getElementById('login').classList.add('hidden');
+ document.getElementById('app').classList.remove('hidden');
+ document.getElementById('welcome').textContent='مرحباً، '+(currentUser.email||'المدير');
+ await refreshAll();
+}
+async function logout(){
+ await db.auth.signOut();
+ location.reload();
+}
+async function logAction(action,entity,details={}){
+ const {error}=await db.from('am_activity_log').insert({
+  actor_id:currentUser.id,action,entity_type:entity,details
+ });
+ if(error) console.error('Activity log:',error.message);
+}
+async function loadTable(table,order='created_at'){
+ const {data,error}=await db.from(table).select('*').order(order,{ascending:false});
+ if(error) throw error;
+ return data||[];
+}
+async function refreshAll(){
  try{
-  keys.forEach(k=>localStorage.setItem("alm_"+k,JSON.stringify(db[k])));
-  render();
- }catch(e){
-  alert("مساحة التخزين ممتلئة. استخدم ملفاً أصغر للإيصال.");
- }
+  const [emps,clients,projects,finance,history]=await Promise.all([
+   loadTable('am_ai_employees'),loadTable('am_clients'),
+   loadTable('am_projects'),loadTable('am_finance_transactions','transaction_date'),
+   loadTable('am_activity_log')
+  ]);
+  document.getElementById('nEmployees').textContent=emps.length;
+  document.getElementById('nClients').textContent=clients.length;
+  document.getElementById('nProjects').textContent=projects.length;
+  const income=finance.filter(x=>x.type==='income').reduce((s,x)=>s+Number(x.amount),0);
+  const expense=finance.filter(x=>x.type==='expense').reduce((s,x)=>s+Number(x.amount),0);
+  document.getElementById('balance').textContent=(income-expense).toLocaleString();
+  document.getElementById('employeesList').innerHTML=emps.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.code)}<div class="muted">${safe(x.job_title)} | ${safe(x.language)} | ${safe(x.status)}</div></div>`).join('');
+  document.getElementById('clientsList').innerHTML=clients.map(x=>`<div class="item"><b>${safe(x.name)}</b><div class="muted">${safe(x.business_name)} | ${safe(x.state)} | ${safe(x.phone)}</div></div>`).join('');
+  document.getElementById('projectClient').innerHTML='<option value="">اختر العميل</option>'+clients.map(x=>`<option value="${x.id}">${safe(x.name)}</option>`).join('');
+  document.getElementById('projectsList').innerHTML=projects.map(x=>`<div class="item"><b>${safe(x.title)}</b><div class="muted">${safe(x.service)} | ${safe(x.status)} | ${Number(x.budget||0).toLocaleString()} NGN</div></div>`).join('');
+  document.getElementById('financeList').innerHTML=finance.map(x=>`<div class="item"><b>${x.type==='income'?'إيراد':'مصروف'}: ${Number(x.amount).toLocaleString()} ${safe(x.currency)}</b><div class="muted">${safe(x.category)} | ${safe(x.transaction_date)} | ${safe(x.description)}</div></div>`).join('');
+  document.getElementById('historyList').innerHTML=history.map(x=>`<div class="item">${safe(x.action)}<div class="muted">${safe(x.entity_type)} | ${safe(x.created_at)}</div></div>`).join('');
+  msg('تم تحديث البيانات من قاعدة البيانات.');
+ }catch(e){msg('خطأ في تحميل البيانات: '+e.message)}
 }
-function safe(v){
- return String(v??"").replace(/[&<>"']/g,c=>({
- "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
- }[c]));
+async function addEmployee(){
+ try{
+  const row={code:val('empCode'),name:val('empName'),department:val('empDept'),job_title:val('empJob'),language:val('empLang'),instructions:val('empInstructions'),status:'active'};
+  if(!row.code||!row.name) return msg('أدخل رمز الموظف واسمه.');
+  const {error}=await db.from('am_ai_employees').insert(row);
+  if(error) throw error;
+  await logAction('إضافة موظف ذكاء اصطناعي','ai_employee',{name:row.name,code:row.code});
+  ['empCode','empName','empDept','empJob','empInstructions'].forEach(id=>document.getElementById(id).value='');
+  msg('تمت إضافة الموظف.'); await refreshAll();
+ }catch(e){msg('تعذر إضافة الموظف: '+e.message)}
 }
-function log(action){
- db.history.unshift({action,time:new Date().toLocaleString()});
+async function addClient(){
+ try{
+  const row={name:val('clientName'),business_name:val('businessName'),phone:val('clientPhone'),whatsapp:val('clientWhatsapp'),email:val('clientEmail'),state:val('clientState'),notes:val('clientNotes'),country:'Nigeria',created_by:currentUser.id};
+  if(!row.name) return msg('أدخل اسم العميل.');
+  const {error}=await db.from('am_clients').insert(row);
+  if(error) throw error;
+  await logAction('إضافة عميل','client',{name:row.name});
+  ['clientName','businessName','clientPhone','clientWhatsapp','clientEmail','clientState','clientNotes'].forEach(id=>document.getElementById(id).value='');
+  msg('تمت إضافة العميل.'); await refreshAll();
+ }catch(e){msg('تعذر إضافة العميل: '+e.message)}
 }
-function add(key,obj){
- obj.id=Date.now().toString()+Math.random().toString(16).slice(2);
- db[key].unshift(obj);
- log("إضافة سجل: "+key);
- persist();
+async function addProject(){
+ try{
+  const row={client_id:val('projectClient'),title:val('projectTitle'),service:val('projectService'),description:val('projectDescription'),budget:Number(val('projectBudget')||0),currency:'NGN',due_date:val('projectDue')||null,created_by:currentUser.id,status:'pending'};
+  if(!row.client_id||!row.title) return msg('اختر العميل واكتب اسم المشروع.');
+  const {error}=await db.from('am_projects').insert(row);
+  if(error) throw error;
+  await logAction('إضافة مشروع','project',{title:row.title});
+  ['projectTitle','projectService','projectDescription','projectBudget','projectDue'].forEach(id=>document.getElementById(id).value='');
+  msg('تمت إضافة المشروع.'); await refreshAll();
+ }catch(e){msg('تعذر إضافة المشروع: '+e.message)}
 }
-function removeItem(key,id){
- if(!confirm("هل تريد حذف هذا السجل؟"))return;
- db[key]=db[key].filter(x=>x.id!==id);
- log("حذف سجل: "+key);
- persist();
+async function addFinance(){
+ try{
+  const amount=Number(val('financeAmount'));
+  if(!amount||amount<=0) return msg('أدخل مبلغاً صحيحاً أكبر من صفر.');
+  const row={type:val('financeType'),amount,currency:'NGN',category:val('financeCategory'),transaction_date:val('financeDate')||new Date().toISOString().slice(0,10),description:val('financeDescription'),recorded_by:currentUser.id};
+  const {data,error}=await db.from('am_finance_transactions').insert(row).select().single();
+  if(error) throw error;
+  const file=document.getElementById('receipt').files[0];
+  if(file){
+   const cleanName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+   const path=currentUser.id+'/'+data.id+'/'+Date.now()+'_'+cleanName;
+   const upload=await db.storage.from('am-transaction-receipts').upload(path,file);
+   if(upload.error) throw upload.error;
+   const saved=await db.from('am_transaction_receipts').insert({transaction_id:data.id,storage_path:path,file_name:file.name,mime_type:file.type,uploaded_by:currentUser.id});
+   if(saved.error) throw saved.error;
+  }
+  await logAction('تسجيل عملية مالية','finance',{type:row.type,amount:row.amount});
+  ['financeAmount','financeCategory','financeDescription'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('receipt').value='';
+  msg('تم حفظ العملية المالية.'); await refreshAll();
+ }catch(e){msg('تعذر حفظ العملية: '+e.message)}
 }
-function makeTable(key,columns){
- if(!db[key].length)return '<p class="muted">لا توجد بيانات حتى الآن.</p>';
- let html='<div class="tablewrap"><table><thead><tr>';
- columns.forEach(c=>html+='<th>'+c[0]+'</th>');
- html+='<th>إجراء</th></tr></thead><tbody>';
- db[key].forEach(item=>{
-  html+='<tr>';
-  columns.forEach(c=>html+='<td>'+safe(item[c[1]])+'</td>');
-  html+='<td><button class="danger" data-delete="'+key+'" data-id="'+safe(item.id)+'">حذف</button></td></tr>';
- });
- return html+'</tbody></table></div>';
-}
-function render(){
- $("employeeList").innerHTML=makeTable("employees",[
-  ["الاسم","name"],["الوظيفة","job"],["النوع","type"],["الصلاحية","permission"]
- ]);
- $("clientList").innerHTML=makeTable("clients",[
-  ["الاسم","name"],["الهاتف","phone"],["النشاط","business"],["المدينة","city"]
- ]);
- $("orderList").innerHTML=makeTable("orders",[
-  ["العميل","client"],["الخدمة","service"],["المبلغ","amount"],["الحالة","status"]
- ]);
- $("financeList").innerHTML=makeTable("finance",[
-  ["النوع","typeLabel"],["المبلغ","amount"],["البيان","description"],["التاريخ","date"]
- ]);
- $("historyList").innerHTML=makeTable("history",[
-  ["العملية","action"],["التاريخ","time"]
- ]);
- const income=db.finance.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0);
- const expense=db.finance.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0);
- $("mEmployees").textContent=db.employees.length;
- $("mClients").textContent=db.clients.length;
- $("mOrders").textContent=db.orders.length;
- $("mIncome").textContent=income.toLocaleString();
- $("mExpense").textContent=expense.toLocaleString();
- $("mBalance").textContent=(income-expense).toLocaleString();
- $("reportContent").innerHTML=
-  "<p>عدد الموظفين: <b>"+db.employees.length+"</b></p>"+
-  "<p>عدد العملاء: <b>"+db.clients.length+"</b></p>"+
-  "<p>عدد الطلبات: <b>"+db.orders.length+"</b></p>"+
-  "<p>إجمالي الإيرادات: <b>"+income.toLocaleString()+" NGN</b></p>"+
-  "<p>إجمالي المصروفات: <b>"+expense.toLocaleString()+" NGN</b></p>"+
-  "<p>صافي الرصيد: <b>"+(income-expense).toLocaleString()+" NGN</b></p>";
-}
-$("nav").addEventListener("click",e=>{
- const b=e.target.closest("[data-page]");
- if(!b)return;
- document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
- b.classList.add("active");
- document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
- $(b.dataset.page).classList.add("active");
-});
-document.addEventListener("click",e=>{
- const b=e.target.closest("[data-delete]");
- if(b)removeItem(b.dataset.delete,b.dataset.id);
-});
-function data(form){return Object.fromEntries(new FormData(form).entries())}
-$("employeeForm").addEventListener("submit",e=>{
- e.preventDefault();add("employees",data(e.target));e.target.reset();
-});
-$("clientForm").addEventListener("submit",e=>{
- e.preventDefault();add("clients",data(e.target));e.target.reset();
-});
-$("orderForm").addEventListener("submit",e=>{
- e.preventDefault();
- const d=data(e.target);d.amount=Number(d.amount||0);
- add("orders",d);e.target.reset();
-});
-$("financeForm").addEventListener("submit",async e=>{
- e.preventDefault();
- const d=data(e.target);
- const file=e.target.elements.receipt.files[0];
- if(file){
-  if(file.size>500000){alert("حجم الإيصال يجب ألا يتجاوز 500 كيلوبايت في هذه النسخة.");return}
-  d.receiptName=file.name;
-  d.receipt=await new Promise((resolve,reject)=>{
-   const reader=new FileReader();
-   reader.onload=()=>resolve(reader.result);
-   reader.onerror=reject;
-   reader.readAsDataURL(file);
-  });
- }
- d.amount=Number(d.amount);
- d.typeLabel=d.type==="income"?"إيراد":"مصروف";
- d.date=new Date().toLocaleString();
- add("finance",d);
- e.target.reset();
-});
-$("logoFile").addEventListener("change",e=>{
- const file=e.target.files[0];
- if(!file)return;
- if(file.size>500000){alert("اختر شعاراً حجمه أقل من 500 كيلوبايت.");return}
- const reader=new FileReader();
- reader.onload=()=>{
-  try{
-   localStorage.setItem("alm_logo",reader.result);
-   $("logo").src=reader.result;
-  }catch(err){alert("تعذر حفظ الشعار. اختر صورة أصغر.")}
- };
- reader.readAsDataURL(file);
-});
-$("exportBtn").addEventListener("click",()=>{
- const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
- const url=URL.createObjectURL(blob);
- const a=document.createElement("a");
- a.href=url;a.download="al-majid-backup.json";a.click();
- URL.revokeObjectURL(url);
-});
-$("languageBtn").addEventListener("click",()=>{
- const english=document.documentElement.lang!=="en";
- document.documentElement.lang=english?"en":"ar";
- document.documentElement.dir=english?"ltr":"rtl";
- $("languageBtn").textContent=english?"العربية":"English";
- $("brandTitle").textContent=english?"AL MAJID AI CONTROL CENTER":"مركز تحكم الماجد للذكاء الاصطناعي";
-});
-load();
-const savedLogo=localStorage.getItem("alm_logo");
-if(savedLogo)$("logo").src=savedLogo;
-render();
+(async function init(){
+ const {data}=await db.auth.getSession();
+ if(data.session){currentUser=data.session.user;await verifyDirector()}
+})();
 </script>
 </body>
 </html>
