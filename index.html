@@ -123,4 +123,4 @@ function reviewCard(r,t){return `<div class="item">${"★".repeat(Number(r.stars
 async function moderateReview(t,id,status){if(!requireDirector())return;const {error}=await db.from(t).update({status}).eq("id",id);if(error){msg(error.message);return}await loadReviewsAdmin()}
 window.addEventListener("load",loadMarket);
 </script>
-</body></html>
+</body></html> 
