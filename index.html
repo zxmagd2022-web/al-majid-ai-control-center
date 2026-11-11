@@ -215,7 +215,8 @@ async function customerRegister(){
 
   }catch(e){
     el("customerMessage").textContent =
-      "تعذر إنشاء الحساب: " + e.message;
+      "تعذر إنشاء الحساب: " + e.message +
+      "\nالبريد المرسل للنظام: " + JSON.stringify(email);
   }
 }
 
