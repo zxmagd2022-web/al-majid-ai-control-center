@@ -94,33 +94,356 @@ function msg(t){el("message").textContent=t}function show(id){document.querySele
 function showMarketAuth(){el("marketLogin").classList.remove("hidden")}function hideMarketAuth(){el("marketLogin").classList.add("hidden")}
 function backToMarket(){el("productDetails").classList.add("hidden");el("market").classList.remove("hidden")}
 function requireDirector(){if(!isDirector||!currentUser){msg("هذه الوظيفة للمدير المعتمد فقط.");return false}return true}
-async function login(){el("loginMsg").textContent="جارٍ التحقق...";try{const {data,error}=await db.auth.signInWithPassword({email:val("email"),password:el("password").value});if(error)throw error;currentUser=data.user;const v=await db.rpc("is_active_director");if(v.error||v.data!==true){await db.auth.signOut();currentUser=null;throw Error("هذا الحساب غير معتمد كمدير نشط.")}isDirector=true;el("login").classList.add("hidden");el("app").classList.remove("hidden");el("welcome").textContent="مرحباً، "+(currentUser.email||"المدير");await refreshAll();await loadMarketAdmin();await loadReviewsAdmin()}catch(e){el("loginMsg").textContent="تعذر الدخول: "+e.message}}
+
+async function login(){
+  el("loginMsg").textContent="جارٍ التحقق...";
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email:val("email"),password:el("password").value});
+    if(error)throw error;
+    currentUser=data.user;
+    await checkUserRoleAndRedirect();
+  }catch(e){el("loginMsg").textContent="تعذر الدخول: "+e.message}
+}
+
+async function checkUserRoleAndRedirect(){
+  if(!currentUser) return;
+  const v=await db.rpc("is_active_director");
+  if(!v.error && v.data===true){
+    isDirector=true;
+    el("login").classList.add("hidden");
+    el("market").classList.add("hidden");
+    el("app").classList.remove("hidden");
+    el("welcome").textContent="مرحباً، "+(currentUser.email||"المدير");
+    await refreshAll();
+    await loadMarketAdmin();
+    await loadReviewsAdmin();
+  } else {
+    isDirector=false;
+    el("login").classList.add("hidden");
+    el("market").classList.add("hidden");
+    el("sellerPortal").classList.remove("hidden");
+    await loadSellerPortal();
+  }
+}
+
 async function logout(){await db.auth.signOut();location.reload()}
-async function customerLogin(){el("customerMessage").textContent="جارٍ الدخول...";try{const {data,error}=await db.auth.signInWithPassword({email:val("customerEmail"),password:el("customerPassword").value});if(error)throw error;currentUser=data.user;const d=await db.rpc("is_active_director");if(!d.error&&d.data===true){isDirector=true;el("customerMessage").textContent="هذا حساب المدير؛ استخدم دخول المدير.";return}hideMarketAuth();el("market").classList.add("hidden");el("sellerPortal").classList.remove("hidden");await loadSellerPortal()}catch(e){el("customerMessage").textContent="تعذر الدخول: "+e.message}}
-async function customerRegister(){const email=val("customerEmail"),password=el("customerPassword").value;if(!email||password.length<6){el("customerMessage").textContent="أدخل البريد وكلمة مرور من 6 أحرف على الأقل.";return}try{const {data,error}=await db.auth.signUp({email,password});if(error)throw error;if(!data.session){el("customerMessage").textContent="أنشئ الحساب. تحقق من بريدك ثم سجّل الدخول.";return}currentUser=data.user;hideMarketAuth();el("market").classList.add("hidden");el("sellerPortal").classList.remove("hidden");await loadSellerPortal()}catch(e){el("customerMessage").textContent="تعذر إنشاء الحساب: "+e.message}}
+async function customerLogin(){
+  el("customerMessage").textContent="جارٍ الدخول...";
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email:val("customerEmail"),password:val("customerPassword")});
+    if(error)throw error;
+    currentUser=data.user;
+    hideMarketAuth();
+    el("market").classList.add("hidden");
+    await checkUserRoleAndRedirect();
+  }catch(e){el("customerMessage").textContent="تعذر الدخول: "+e.message}
+}
+
+async function customerRegister(){
+  const email=val("customerEmail"),password=el("customerPassword").value;
+  if(!email||password.length<6){el("customerMessage").textContent="أدخل البريد وكلمة مرور من 6 أحرف على الأقل.";return}
+  try{
+    const {data,error}=await db.auth.signUp({email,password});
+    if(error)throw error;
+    if(!data.session){el("customerMessage").textContent="أنشئ الحساب. تحقق من بريدك ثم سجّل الدخول.";return}
+    currentUser=data.user;
+    hideMarketAuth();
+    el("market").classList.add("hidden");
+    el("sellerPortal").classList.remove("hidden");
+    await loadSellerPortal();
+  }catch(e){el("customerMessage").textContent="تعذر إنشاء الحساب: "+e.message}
+}
+
 async function customerLogout(){await db.auth.signOut();currentUser=null;mySellerId=null;el("sellerPortal").classList.add("hidden");el("market").classList.remove("hidden");showMarketAuth()}
-async function loadSellerPortal(){if(!currentUser||isDirector)return;el("sellerAccountMessage").textContent="الحساب: "+(currentUser.email||"مستخدم مسجل");const {data,error}=await db.from("am_market_sellers").select("*").eq("owner_user_id",currentUser.id).order("created_at",{ascending:false}).limit(1);if(error){el("sellerPortalMessage").textContent="تعذر تحميل المتجر: "+error.message;return}const store=data?.[0];if(!store){el("sellerCreateArea").classList.remove("hidden");el("sellerStoreArea").classList.add("hidden");el("sellerPortalMessage").textContent="أنشئ متجرك. سيبقى مخفياً حتى موافقة الإدارة.";return}mySellerId=store.id;el("sellerCreateArea").classList.add("hidden");el("sellerStoreArea").classList.remove("hidden");el("sellerStoreInfo").innerHTML="<b>"+safe(store.display_name)+"</b> — حالة المتجر: <span class='pill'>"+safe(store.status)+"</span>";const p=await db.from("am_market_products").select("*").eq("seller_id",store.id).order("created_at",{ascending:false});if(p.error){el("sellerProductsList").textContent=p.error.message;return}el("sellerProductsList").innerHTML=(p.data||[]).map(x=>"<div class='item'><b>"+safe(x.title)+"</b> — "+money(x.price)+" NGN <span class='pill'>"+safe(x.status)+"</span></div>").join("")||"<p class='muted'>لم تضف منتجات بعد.</p>";el("sellerPortalMessage").textContent="يمكنك إضافة المنتجات؛ ستبقى قيد المراجعة حتى اعتمادها."}
-async function createSellerStore(){if(!currentUser||isDirector)return;const name=val("newSellerName");if(!name){el("sellerPortalMessage").textContent="اكتب اسم المتجر.";return}try{const {error}=await db.from("am_market_sellers").insert({id:crypto.randomUUID(),display_name:name,phone:val("newSellerPhone"),owner_user_id:currentUser.id,status:"pending"});if(error)throw error;el("sellerPortalMessage").textContent="تم إرسال المتجر للمراجعة.";await loadSellerPortal()}catch(e){el("sellerPortalMessage").textContent="تعذر إنشاء المتجر: "+e.message}}
-async function addSellerProduct(){if(!mySellerId||!currentUser||isDirector)return;const title=val("sellerProductTitle"),price=Number(val("sellerProductPrice"));if(!title||!Number.isFinite(price)||price<0){el("sellerPortalMessage").textContent="أدخل اسم المنتج وسعراً صحيحاً.";return}try{const {error}=await db.from("am_market_products").insert({seller_id:mySellerId,title,description:val("sellerProductDescription"),price,currency:"NGN",image_url:val("sellerProductImage")||null,status:"pending"});if(error)throw error;["sellerProductTitle","sellerProductDescription","sellerProductPrice","sellerProductImage"].forEach(i=>el(i).value="");el("sellerPortalMessage").textContent="تم إرسال المنتج للمراجعة.";await loadSellerPortal()}catch(e){el("sellerPortalMessage").textContent="تعذر إضافة المنتج: "+e.message}}
-async function logAction(action,entity,details={}){if(!currentUser)return;const {error}=await db.from("am_activity_log").insert({actor_id:currentUser.id,action,entity_type:entity,details});if(error)console.warn(error.message)}
-async function loadTable(t,o="created_at"){const {data,error}=await db.from(t).select("*").order(o,{ascending:false});if(error)throw error;return data||[]}
-async function refreshAll(){if(!requireDirector())return;try{const [a,b,c,f,h]=await Promise.all([loadTable("am_ai_employees"),loadTable("am_clients"),loadTable("am_projects"),loadTable("am_finance_transactions","transaction_date"),loadTable("am_activity_log")]);el("nEmployees").textContent=a.length;el("nClients").textContent=b.length;el("nProjects").textContent=c.length;el("balance").textContent=money(f.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0)-f.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0));el("employeesList").innerHTML=a.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.code)}<div class="muted">${safe(x.job_title)} | ${safe(x.language)}</div></div>`).join("");el("clientsList").innerHTML=b.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.business_name)} | ${safe(x.phone)}</div>`).join("");el("projectClient").innerHTML='<option value="">اختر العميل</option>'+b.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join("");el("projectsList").innerHTML=c.map(x=>`<div class="item">${safe(x.title)} — ${money(x.budget)} NGN</div>`).join("");el("financeList").innerHTML=f.map(x=>`<div class="item">${safe(x.type)} — ${money(x.amount)} NGN | ${safe(x.category)} | ${safe(x.transaction_date)}</div>`).join("");el("historyList").innerHTML=h.map(x=>`<div class="item">${safe(x.action)} — ${safe(x.entity_type)} | ${safe(x.created_at)}</div>`).join("");msg("تم تحديث البيانات.")}catch(e){msg("خطأ في تحميل البيانات: "+e.message)}}
-async function addEmployee(){if(!requireDirector())return;try{const r={code:val("empCode"),name:val("empName"),department:val("empDept"),job_title:val("empJob"),language:val("empLang"),instructions:val("empInstructions"),status:"active"};if(!r.code||!r.name)throw Error("أدخل الرمز والاسم.");const {error}=await db.from("am_ai_employees").insert(r);if(error)throw error;await logAction("إضافة موظف","ai_employee",{name:r.name});msg("تمت إضافة الموظف.");await refreshAll()}catch(e){msg("تعذر إضافة الموظف: "+e.message)}}
-async function addClient(){if(!requireDirector())return;try{const r={name:val("clientName"),business_name:val("businessName"),phone:val("clientPhone"),whatsapp:val("clientWhatsapp"),email:val("clientEmail"),state:val("clientState"),notes:val("clientNotes"),country:"Nigeria",created_by:currentUser.id};if(!r.name)throw Error("أدخل اسم العميل.");const {error}=await db.from("am_clients").insert(r);if(error)throw error;await logAction("إضافة عميل","client",{name:r.name});msg("تمت إضافة العميل.");await refreshAll()}catch(e){msg("تعذر إضافة العميل: "+e.message)}}
-async function addProject(){if(!requireDirector())return;try{const r={client_id:val("projectClient"),title:val("projectTitle"),service:val("projectService"),description:val("projectDescription"),budget:Number(val("projectBudget")||0),currency:"NGN",due_date:val("projectDue")||null,created_by:currentUser.id,status:"pending"};if(!r.client_id||!r.title)throw Error("اختر العميل واكتب اسم المشروع.");const {error}=await db.from("am_projects").insert(r);if(error)throw error;await logAction("إضافة مشروع","project",{title:r.title});msg("تمت إضافة المشروع.");await refreshAll()}catch(e){msg("تعذر إضافة المشروع: "+e.message)}}
-async function addFinance(){if(!requireDirector())return;let made=false;try{const amount=Number(val("financeAmount"));if(amount<=0)throw Error("أدخل مبلغاً أكبر من صفر.");const r={type:val("financeType"),amount,currency:"NGN",category:val("financeCategory"),transaction_date:val("financeDate")||new Date().toISOString().slice(0,10),description:val("financeDescription"),recorded_by:currentUser.id};const {data,error}=await db.from("am_finance_transactions").insert(r).select().single();if(error)throw error;made=true;const file=el("receipt").files[0];if(file){const path=currentUser.id+"/"+data.id+"/"+Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");const up=await db.storage.from("am-transaction-receipts").upload(path,file);if(up.error)throw up.error;const saved=await db.from("am_transaction_receipts").insert({transaction_id:data.id,storage_path:path,file_name:file.name,mime_type:file.type,uploaded_by:currentUser.id});if(saved.error)throw saved.error}await logAction("تسجيل عملية مالية","finance",{type:r.type,amount});msg("تم حفظ العملية.");await refreshAll()}catch(e){msg((made?"حُفظت العملية لكن: ":"تعذر الحفظ: ")+e.message);if(made)await refreshAll()}}
-async function loadMarket(){el("marketMessage").textContent="جارٍ تحميل السوق...";try{const [p,s]=await Promise.all([db.from("am_market_products").select("*").eq("status","active").order("created_at",{ascending:false}),db.from("am_market_sellers").select("*").eq("status","active").order("created_at",{ascending:false})]);if(p.error)throw p.error;if(s.error)throw s.error;marketProducts=p.data||[];marketSellers=s.data||[];el("marketSellerFilter").innerHTML='<option value="">كل المتاجر</option>'+marketSellers.map(x=>`<option value="${safe(x.id)}">${safe(x.display_name)}</option>`).join("");renderMarket();el("marketMessage").textContent=marketProducts.length?"":"لا توجد منتجات منشورة حالياً."}catch(e){el("marketMessage").textContent="تعذر تحميل السوق: "+e.message}}
-function renderMarket(){const q=val("search").toLowerCase(),sid=val("marketSellerFilter");const rows=marketProducts.filter(p=>(!sid||p.seller_id===sid)&&(!q||(p.title||"").toLowerCase().includes(q)||(p.description||"").toLowerCase().includes(q)));el("marketProducts").innerHTML=rows.map(p=>{const s=marketSellers.find(x=>x.id===p.seller_id);return `<article class="product">${p.image_url?`<img src="${safe(p.image_url)}" alt="">`:""}<h4>${safe(p.title)}</h4><div class="muted">${safe(s?.display_name||"بائع")}</div><p>${safe(p.description)}</p><div class="price">${money(p.price)} NGN</div><button onclick="openProduct('${safe(p.id)}')">عرض المنتج والتقييمات</button></article>`}).join("")||'<p class="muted">لا توجد نتائج.</p>'}
-async function openProduct(id){selectedProduct=marketProducts.find(x=>x.id===id);if(!selectedProduct)return;el("market").classList.add("hidden");el("marketLogin").classList.add("hidden");el("productDetails").classList.remove("hidden");const s=marketSellers.find(x=>x.id===selectedProduct.seller_id);el("productDetailContent").innerHTML=`<h3>${safe(selectedProduct.title)}</h3><p>${safe(selectedProduct.description)}</p><div class="price">${money(selectedProduct.price)} NGN</div><p class="muted">البائع: ${safe(s?.display_name)}</p>`;await loadReviews()}
-async function loadReviews(){const [p,s]=await Promise.all([db.from("am_market_product_reviews").select("*").eq("product_id",selectedProduct.id).eq("status","approved").order("created_at",{ascending:false}),db.from("am_market_seller_reviews").select("*").eq("seller_id",selectedProduct.seller_id).eq("status","approved").order("created_at",{ascending:false})]);el("productReviews").innerHTML="<h4>آراء العملاء</h4>"+(p.data||[]).map(r=>`<div class="item">${"★".repeat(Number(r.stars)||0)}<p>${safe(r.comment)}</p></div>`).join("");el("sellerReviews").innerHTML="<h4>آراء البائع</h4>"+(s.data||[]).map(r=>`<div class="item">${"★".repeat(Number(r.stars)||0)}<p>${safe(r.comment)}</p></div>`).join("")}
-async function submitProductReview(){if(!currentUser){showMarketAuth();alert("سجّل الدخول أولاً.");return}const comment=val("productComment");if(!comment)return alert("اكتب تعليقك.");const {error}=await db.from("am_market_product_reviews").insert({product_id:selectedProduct.id,seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("productStars")),comment,status:"pending"});alert(error?"تعذر إرسال التقييم: "+error.message:"تم إرسال التقييم للمراجعة.");}
-async function submitSellerReview(){if(!currentUser){showMarketAuth();alert("سجّل الدخول أولاً.");return}const comment=val("sellerComment");if(!comment)return alert("اكتب تعليقك.");const {error}=await db.from("am_market_seller_reviews").insert({seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("sellerStars")),comment,status:"pending"});alert(error?"تعذر إرسال التقييم: "+error.message:"تم إرسال التقييم للمراجعة.");}
-async function loadMarketAdmin(){if(!requireDirector())return;try{const [s,p]=await Promise.all([db.from("am_market_sellers").select("*").order("created_at",{ascending:false}),db.from("am_market_products").select("*").order("created_at",{ascending:false})]);if(s.error)throw s.error;if(p.error)throw p.error;el("sellersList").innerHTML="<h4>المتاجر</h4>"+(s.data||[]).map(x=>`<div class="item"><b>${safe(x.display_name)}</b> <span class="pill">${safe(x.status)}</span> — ${safe(x.phone)} ${x.status==="pending"?`<button onclick="approveSeller('${safe(x.id)}')">اعتماد المتجر</button>`:""}</div>`).join("");el("adminProducts").innerHTML="<h4>المنتجات</h4>"+(p.data||[]).map(x=>`<div class="item"><b>${safe(x.title)}</b> — ${money(x.price)} NGN <span class="pill">${safe(x.status)}</span> ${x.status==="pending"?`<button onclick="approveProduct('${safe(x.id)}')">اعتماد المنتج</button>`:""}</div>`).join("")}catch(e){msg("تعذر تحميل السوق: "+e.message)}}
-async function approveSeller(id){if(!requireDirector())return;const {error}=await db.from("am_market_sellers").update({status:"active"}).eq("id",id);if(error){msg(error.message);return}msg("تم اعتماد المتجر.");await loadMarketAdmin();await loadMarket()}
-async function approveProduct(id){if(!requireDirector())return;const {error}=await db.from("am_market_products").update({status:"active"}).eq("id",id);if(error){msg(error.message);return}msg("تم اعتماد المنتج.");await loadMarketAdmin();await loadMarket()}
-async function loadReviewsAdmin(){if(!requireDirector())return;try{const [p,s]=await Promise.all([db.from("am_market_product_reviews").select("*").order("created_at",{ascending:false}),db.from("am_market_seller_reviews").select("*").order("created_at",{ascending:false})]);if(p.error)throw p.error;if(s.error)throw s.error;el("productReviewsAdmin").innerHTML=(p.data||[]).map(r=>reviewCard(r,"am_market_product_reviews")).join("")||"لا توجد تقييمات";el("sellerReviewsAdmin").innerHTML=(s.data||[]).map(r=>reviewCard(r,"am_market_seller_reviews")).join("")||"لا توجد تقييمات"}catch(e){msg(e.message)}}
-function reviewCard(r,t){return `<div class="item">${"★".repeat(Number(r.stars)||0)} — ${safe(r.comment)} <span class="pill">${safe(r.status)}</span><div class="actions"><button onclick="moderateReview('${t}','${safe(r.id)}','approved')">قبول</button><button class="danger" onclick="moderateReview('${t}','${safe(r.id)}','rejected')">رفض</button></div></div>`}
-async function moderateReview(t,id,status){if(!requireDirector())return;const {error}=await db.from(t).update({status}).eq("id",id);if(error){msg(error.message);return}await loadReviewsAdmin()}
-window.addEventListener("load",loadMarket);
+
+async function loadSellerPortal(){
+  if(!currentUser||isDirector)return;
+  el("sellerAccountMessage").textContent="الحساب: "+(currentUser.email||"مستخدم مسجل");
+  const {data,error}=await db.from("am_market_sellers").select("*").eq("owner_user_id",currentUser.id).order("created_at",{ascending:false}).limit(1);
+  if(error){el("sellerPortalMessage").textContent="تعذر تحميل المتجر: "+error.message;return}
+  const store=data?.[0];
+  if(!store){
+    el("sellerCreateArea").classList.remove("hidden");
+    el("sellerStoreArea").classList.add("hidden");
+    el("sellerPortalMessage").textContent="أنشئ متجرك. سيبقى مخفياً حتى موافقة الإدارة.";
+    return;
+  }
+  mySellerId=store.id;
+  el("sellerCreateArea").classList.add("hidden");
+  el("sellerStoreArea").classList.remove("hidden");
+  el("sellerStoreInfo").innerHTML="<b>"+safe(store.display_name)+"</b> — حالة المتجر: <span class='pill'>"+safe(store.status)+"</span>";
+  const p=await db.from("am_market_products").select("*").eq("seller_id",store.id).order("created_at",{ascending:false});
+  if(p.error){el("sellerProductsList").textContent=p.error.message;return}
+  el("sellerProductsList").innerHTML=(p.data||[]).map(x=>"<div class='item'><b>"+safe(x.title)+"</b> — "+money(x.price)+" NGN <span class='pill'>"+safe(x.status)+"</span></div>").join("")||"<p class='muted'>لم تضف منتجات بعد.</p>";
+  el("sellerPortalMessage").textContent="يمكنك إضافة المنتجات؛ ستبقى قيد المراجعة حتى اعتمادها.";
+}
+
+async function createSellerStore(){
+  if(!currentUser||isDirector)return;
+
+  const name=val("newSellerName");
+  if(!name){
+    el("sellerPortalMessage").textContent="اكتب اسم المتجر.";
+    return;
+  }
+
+  try{
+    const {error}=await db.from("am_market_sellers").insert({
+      id: currentUser.id,
+      display_name: name,
+      phone: val("newSellerPhone"),
+      owner_user_id: currentUser.id,
+      status: "pending"
+    });
+
+    if(error)throw error;
+
+    el("sellerPortalMessage").textContent="تم إرسال المتجر للمراجعة.";
+    await loadSellerPortal();
+
+  }catch(e){
+    el("sellerPortalMessage").textContent="تعذر إنشاء المتجر: "+e.message;
+  }
+}
+
+async function addSellerProduct(){
+  if(!mySellerId||!currentUser||isDirector)return;
+  const title=val("sellerProductTitle"),price=Number(val("sellerProductPrice"));
+  if(!title||!Number.isFinite(price)||price<0){el("sellerPortalMessage").textContent="أدخل اسم المنتج وسعراً صحيحاً.";return}
+  try{
+    const {error}=await db.from("am_market_products").insert({seller_id:mySellerId,title,description:val("sellerProductDescription"),price,currency:"NGN",image_url:val("sellerProductImage")||null,status:"pending"});
+    if(error)throw error;
+    ["sellerProductTitle","sellerProductDescription","sellerProductPrice","sellerProductImage"].forEach(i=>el(i).value="");
+    el("sellerPortalMessage").textContent="تم إرسال المنتج للمراجعة.";
+    await loadSellerPortal();
+  }catch(e){el("sellerPortalMessage").textContent="تعذر إضافة المنتج: "+e.message}
+}
+
+async function logAction(action,entity,details={}){
+  if(!currentUser)return;
+  const {error}=await db.from("am_activity_log").insert({actor_id:currentUser.id,action,entity_type:entity,details});
+  if(error)console.warn(error.message);
+}
+
+async function loadTable(t,o="created_at"){
+  const {data,error}=await db.from(t).select("*").order(o,{ascending:false});
+  if(error)throw error;
+  return data||[];
+}
+
+async function refreshAll(){
+  if(!requireDirector())return;
+  try{
+    const [a,b,c,f,h]=await Promise.all([
+      loadTable("am_ai_employees"),
+      loadTable("am_clients"),
+      loadTable("am_projects"),
+      loadTable("am_finance_transactions","transaction_date"),
+      loadTable("am_activity_log")
+    ]);
+    el("nEmployees").textContent=a.length;
+    el("nClients").textContent=b.length;
+    el("nProjects").textContent=c.length;
+    el("balance").textContent=money(f.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0)-f.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0));
+    el("employeesList").innerHTML=a.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.code)}<div class="muted">${safe(x.job_title)} | ${safe(x.language)}</div></div>`).join("");
+    el("clientsList").innerHTML=b.map(x=>`<div class="item"><b>${safe(x.name)}</b> — ${safe(x.business_name)} | ${safe(x.phone)}</div>`).join("");
+    el("projectClient").innerHTML='<option value="">اختر العميل</option>'+b.map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join("");
+    el("projectsList").innerHTML=c.map(x=>`<div class="item">${safe(x.title)} — ${money(x.budget)} NGN</div>`).join("");
+    el("financeList").innerHTML=f.map(x=>`<div class="item">${safe(x.type)} — ${money(x.amount)} NGN | ${safe(x.category)} | ${safe(x.transaction_date)}</div>`).join("");
+    el("historyList").innerHTML=h.map(x=>`<div class="item">${safe(x.action)} — ${safe(x.entity_type)} | ${safe(x.created_at)}</div>`).join("");
+    msg("تم تحديث البيانات.");
+  }catch(e){msg("خطأ في تحميل البيانات: "+e.message)}
+}
+
+async function addEmployee(){
+  if(!requireDirector())return;
+  try{
+    const r={code:val("empCode"),name:val("empName"),department:val("empDept"),job_title:val("empJob"),language:val("empLang"),instructions:val("empInstructions"),status:"active"};
+    if(!r.code||!r.name)throw Error("أدخل الرمز والاسم.");
+    const {error}=await db.from("am_ai_employees").insert(r);
+    if(error)throw error;
+    await logAction("إضافة موظف","ai_employee",{name:r.name});
+    msg("تمت إضافة الموظف.");
+    await refreshAll();
+  }catch(e){msg("تعذر إضافة الموظف: "+e.message)}
+}
+
+async function addClient(){
+  if(!requireDirector())return;
+  try{
+    const r={name:val("clientName"),business_name:val("businessName"),phone:val("clientPhone"),whatsapp:val("clientWhatsapp"),email:val("clientEmail"),state:val("clientState"),notes:val("clientNotes"),country:"Nigeria",created_by:currentUser.id};
+    if(!r.name)throw Error("أدخل اسم العميل.");
+    const {error}=await db.from("am_clients").insert(r);
+    if(error)throw error;
+    await logAction("إضافة عميل","client",{name:r.name});
+    msg("تمت إضافة العميل.");
+    await refreshAll();
+  }catch(e){msg("تعذر إضافة العميل: "+e.message)}
+}
+
+async function addProject(){
+  if(!requireDirector())return;
+  try{
+    const r={client_id:val("projectClient"),title:val("projectTitle"),service:val("projectService"),description:val("projectDescription"),budget:Number(val("projectBudget")||0),currency:"NGN",due_date:val("projectDue")||null,created_by:currentUser.id,status:"pending"};
+    if(!r.client_id||!r.title)throw Error("اختر العميل واكتب اسم المشروع.");
+    const {error}=await db.from("am_projects").insert(r);
+    if(error)throw error;
+    await logAction("إضافة مشروع","project",{title:r.title});
+    msg("تمت إضافة المشروع.");
+    await refreshAll();
+  }catch(e){msg("تعذر إضافة المشروع: "+e.message)}
+}
+
+async function addFinance(){
+  if(!requireDirector())return;
+  let made=false;
+  try{
+    const amount=Number(val("financeAmount"));
+    if(amount<=0)throw Error("أدخل مبلغاً أكبر من صفر.");
+    const r={type:val("financeType"),amount,currency:"NGN",category:val("financeCategory"),transaction_date:val("financeDate")||new Date().toISOString().slice(0,10),description:val("financeDescription"),recorded_by:currentUser.id};
+    const {data,error}=await db.from("am_finance_transactions").insert(r).select().single();
+    if(error)throw error;
+    made=true;
+    const file=el("receipt").files[0];
+    if(file){
+      const path=currentUser.id+"/"+data.id+"/"+Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+      const up=await db.storage.from("am-transaction-receipts").upload(path,file);
+      if(up.error)throw up.error;
+      const saved=await db.from("am_transaction_receipts").insert({transaction_id:data.id,storage_path:path,file_name:file.name,mime_type:file.type,uploaded_by:currentUser.id});
+      if(saved.error)throw saved.error;
+    }
+    await logAction("تسجيل عملية مالية","finance",{type:r.type,amount});
+    msg("تم حفظ العملية.");
+    await refreshAll();
+  }catch(e){msg((made?"حُفظت العملية لكن: ":"تعذر الحفظ: ")+e.message);if(made)await refreshAll()}
+}
+
+async function loadMarket(){
+  el("marketMessage").textContent="جارٍ تحميل السوق...";
+  try{
+    const [p,s]=await Promise.all([
+      db.from("am_market_products").select("*").eq("status","active").order("created_at",{ascending:false}),
+      db.from("am_market_sellers").select("*").eq("status","active").order("created_at",{ascending:false})
+    ]);
+    if(p.error)throw p.error;
+    if(s.error)throw s.error;
+    marketProducts=p.data||[];
+    marketSellers=s.data||[];
+    el("marketSellerFilter").innerHTML='<option value="">كل المتاجر</option>'+marketSellers.map(x=>`<option value="${safe(x.id)}">${safe(x.display_name)}</option>`).join("");
+    renderMarket();
+    el("marketMessage").textContent=marketProducts.length?"":"لا توجد منتجات منشورة حالياً.";
+  }catch(e){el("marketMessage").textContent="تعذر تحميل السوق: "+e.message}
+}
+
+function renderMarket(){
+  const q=val("search").toLowerCase(),sid=val("marketSellerFilter");
+  const rows=marketProducts.filter(p=>(!sid||p.seller_id===sid)&&(!q||(p.title||"").toLowerCase().includes(q)||(p.description||"").toLowerCase().includes(q)));
+  el("marketProducts").innerHTML=rows.map(p=>{
+    const s=marketSellers.find(x=>x.id===p.seller_id);
+    return `<article class="product">${p.image_url?`<img src="${safe(p.image_url)}" alt="">`:""}<h4>${safe(p.title)}</h4><div class="muted">${safe(s?.display_name||"بائع")}</div><p>${safe(p.description)}</p><div class="price">${money(p.price)} NGN</div><button onclick="openProduct('${safe(p.id)}')">عرض المنتج والتقييمات</button></article>`;
+  }).join("")||'<p class="muted">لا توجد نتائج.</p>';
+}
+
+async function openProduct(id){
+  selectedProduct=marketProducts.find(x=>x.id===id);
+  if(!selectedProduct)return;
+  el("market").classList.add("hidden");
+  el("marketLogin").classList.add("hidden");
+  el("productDetails").classList.remove("hidden");
+  const s=marketSellers.find(x=>x.id===selectedProduct.seller_id);
+  el("productDetailContent").innerHTML=`<h3>${safe(selectedProduct.title)}</h3><p>${safe(selectedProduct.description)}</p><div class="price">${money(selectedProduct.price)} NGN</div><p class="muted">البائع: ${safe(s?.display_name)}</p>`;
+  await loadReviews();
+}
+
+async function loadReviews(){
+  const [p,s]=await Promise.all([
+    db.from("am_market_product_reviews").select("*").eq("product_id",selectedProduct.id).eq("status","approved").order("created_at",{ascending:false}),
+    db.from("am_market_seller_reviews").select("*").eq("seller_id",selectedProduct.seller_id).eq("status","approved").order("created_at",{ascending:false})
+  ]);
+  el("productReviews").innerHTML="<h4>آراء العملاء</h4>"+(p.data||[]).map(r=>`<div class="item">${"★".repeat(Number(r.stars)||0)}<p>${safe(r.comment)}</p></div>`).join("");
+  el("sellerReviews").innerHTML="<h4>آراء البائع</h4>"+(s.data||[]).map(r=>`<div class="item">${"★".repeat(Number(r.stars)||0)}<p>${safe(r.comment)}</p></div>`).join("");
+}
+
+async function submitProductReview(){
+  if(!currentUser){showMarketAuth();alert("سجّل الدخول أولاً.");return}
+  const comment=val("productComment");
+  if(!comment)return alert("اكتب تعليقك.");
+  const {error}=await db.from("am_market_product_reviews").insert({product_id:selectedProduct.id,seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("productStars")),comment,status:"pending"});
+  alert(error?"تعذر إرسال التقييم: "+error.message:"تم إرسال التقييم للمراجعة.");
+}
+
+async function submitSellerReview(){
+  if(!currentUser){showMarketAuth();alert("سجّل الدخول أولاً.");return}
+  const comment=val("sellerComment");
+  if(!comment)return alert("اكتب تعليقك.");
+  const {error}=await db.from("am_market_seller_reviews").insert({seller_id:selectedProduct.seller_id,reviewer_id:currentUser.id,stars:Number(val("sellerStars")),comment,status:"pending"});
+  alert(error?"تعذر إرسال التقييم: "+error.message:"تم إرسال التقييم للمراجعة.");
+}
+
+async function loadMarketAdmin(){
+  if(!requireDirector())return;
+  try{
+    const [s,p]=await Promise.all([
+      db.from("am_market_sellers").select("*").order("created_at",{ascending:false}),
+      db.from("am_market_products").select("*").order("created_at",{ascending:false})
+    ]);
+    if(s.error)throw s.error;
+    if(p.error)throw p.error;
+    el("sellersList").innerHTML="<h4>المتاجر</h4>"+(s.data||[]).map(x=>`<div class="item"><b>${safe(x.display_name)}</b> <span class="pill">${safe(x.status)}</span> — ${safe(x.phone)} ${x.status==="pending"?`<button onclick="approveSeller('${safe(x.id)}')">اعتماد المتجر</button>`:""}</div>`).join("");
+    el("adminProducts").innerHTML="<h4>المنتجات</h4>"+(p.data||[]).map(x=>`<div class="item"><b>${safe(x.title)}</b> — ${money(x.price)} NGN <span class="pill">${safe(x.status)}</span> ${x.status==="pending"?`<button onclick="approveProduct('${safe(x.id)}')">اعتماد المنتج</button>`:""}</div>`).join("");
+  }catch(e){msg("تعذر تحميل السوق: "+e.message)}
+}
+
+async function approveSeller(id){
+  if(!requireDirector())return;
+  const {error}=await db.from("am_market_sellers").update({status:"active"}).eq("id",id);
+  if(error){msg(error.message);return}
+  msg("تم اعتماد المتجر.");
+  await loadMarketAdmin();
+  await loadMarket();
+}
+
+async function approveProduct(id){
+  if(!requireDirector())return;
+  const {error}=await db.from("am_market_products").update({status:"active"}).eq("id",id);
+  if(error){msg(error.message);return}
+  msg("تم اعتماد المنتج.");
+  await loadMarketAdmin();
+  await loadMarket();
+}
+
+async function loadReviewsAdmin(){
+  if(!requireDirector())return;
+  try{
+    const [p,s]=await Promise.all([
+      db.from("am_market_product_reviews").select("*").order("created_at",{ascending:false}),
+      db.from("am_market_seller_reviews").select("*").order("created_at",{ascending:false})
+    ]);
+    if(p.error)throw p.error;
+    if(s.error)throw s.error;
+    el("productReviewsAdmin").innerHTML=(p.data||[]).map(r=>reviewCard(r,"am_market_product_reviews")).join("")||"لا توجد تقييمات";
+    el("sellerReviewsAdmin").innerHTML=(s.data||[]).map(r=>reviewCard(r,"am_market_seller_reviews")).join("")||"لا توجد تقييمات";
+  }catch(e){msg(e.message)}
+}
+
+function reviewCard(r,t){
+  return `<div class="item">${"★".repeat(Number(r.stars)||0)} — ${safe(r.comment)} <span class="pill">${safe(r.status)}</span><div class="actions"><button onclick="moderateReview('${t}','${safe(r.id)}','approved')">قبول</button><button class="danger" onclick="moderateReview('${t}','${safe(r.id)}','rejected')">رفض</button></div></div>`;
+}
+
+async function moderateReview(t,id,status){
+  if(!requireDirector())return;
+  const {error}=await db.from(t).update({status}).eq("id",id);
+  if(error){msg(error.message);return}
+  await loadReviewsAdmin();
+}
+
+window.addEventListener("load", async () => {
+  await loadMarket();
+  const { data: { session } } = await db.auth.getSession();
+  if (session && session.user) {
+    currentUser = session.user;
+    await checkUserRoleAndRedirect();
+  }
+});
 </script>
-</body></html> 
+</body></html>
