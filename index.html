@@ -177,7 +177,10 @@ async function customerLogin(){
 }
 
 async function customerRegister(){
-  const email = val("customerEmail").toLowerCase();
+  const email = el("customerEmail").value
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .trim()
+    .toLowerCase();
   const password = el("customerPassword").value;
 
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
