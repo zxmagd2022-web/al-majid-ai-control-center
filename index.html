@@ -107,26 +107,64 @@ async function login(){
 
 async function checkUserRoleAndRedirect(){
   if(!currentUser) return;
-  const v=await db.rpc("is_active_director");
-  if(!v.error && v.data===true){
-    isDirector=true;
+
+  try {
+    const v = await db.rpc("is_active_director");
+
+    if(!v.error && v.data === true){
+      isDirector = true;
+      el("login").classList.add("hidden");
+      el("market").classList.add("hidden");
+      el("marketLogin").classList.add("hidden");
+      el("sellerPortal").classList.add("hidden");
+      el("productDetails").classList.add("hidden");
+      el("app").classList.remove("hidden");
+
+      el("welcome").textContent =
+        "مرحباً، " + (currentUser.email || "المدير");
+
+      await refreshAll();
+      await loadMarketAdmin();
+      await loadReviewsAdmin();
+      return;
+    }
+
+    isDirector = false;
+
+    const {data: seller, error} = await db
+      .from("am_market_sellers")
+      .select("id")
+      .or(`id.eq.${currentUser.id},owner_user_id.eq.${currentUser.id}`)
+      .limit(1)
+      .maybeSingle();
+
+    if(error) throw error;
+
     el("login").classList.add("hidden");
-    el("market").classList.add("hidden");
-    el("app").classList.remove("hidden");
-    el("welcome").textContent="مرحباً، "+(currentUser.email||"المدير");
-    await refreshAll();
-    await loadMarketAdmin();
-    await loadReviewsAdmin();
-  } else {
-    isDirector=false;
-    el("login").classList.add("hidden");
-    el("market").classList.add("hidden");
-    el("sellerPortal").classList.remove("hidden");
-    await loadSellerPortal();
+    el("app").classList.add("hidden");
+    el("marketLogin").classList.add("hidden");
+
+    if(seller){
+      el("market").classList.add("hidden");
+      el("productDetails").classList.add("hidden");
+      el("sellerPortal").classList.remove("hidden");
+      await loadSellerPortal();
+    } else {
+      el("sellerPortal").classList.add("hidden");
+
+      if(el("productDetails").classList.contains("hidden")){
+        el("market").classList.remove("hidden");
+      }
+    }
+
+  } catch(e) {
+    el("marketMessage").textContent =
+      "تعذر تحديد نوع الحساب: " + e.message;
   }
 }
 
 async function logout(){await db.auth.signOut();location.reload()}
+
 async function customerLogin(){
   el("customerMessage").textContent="جارٍ الدخول...";
   try{
@@ -134,24 +172,51 @@ async function customerLogin(){
     if(error)throw error;
     currentUser=data.user;
     hideMarketAuth();
-    el("market").classList.add("hidden");
     await checkUserRoleAndRedirect();
   }catch(e){el("customerMessage").textContent="تعذر الدخول: "+e.message}
 }
 
 async function customerRegister(){
-  const email=val("customerEmail"),password=el("customerPassword").value;
-  if(!email||password.length<6){el("customerMessage").textContent="أدخل البريد وكلمة مرور من 6 أحرف على الأقل.";return}
+  const email = val("customerEmail").toLowerCase();
+  const password = el("customerPassword").value;
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    el("customerMessage").textContent =
+      "أدخل بريداً إلكترونياً صحيحاً.";
+    return;
+  }
+
+  if(password.length < 6){
+    el("customerMessage").textContent =
+      "كلمة المرور يجب أن تكون 6 أحرف على الأقل.";
+    return;
+  }
+
+  el("customerMessage").textContent = "جارٍ إنشاء الحساب...";
+
   try{
-    const {data,error}=await db.auth.signUp({email,password});
-    if(error)throw error;
-    if(!data.session){el("customerMessage").textContent="أنشئ الحساب. تحقق من بريدك ثم سجّل الدخول.";return}
-    currentUser=data.user;
+    const {data,error} = await db.auth.signUp({
+      email,
+      password
+    });
+
+    if(error) throw error;
+
+    if(!data.session){
+      el("customerMessage").textContent =
+        "تم إنشاء الحساب. افتح بريدك الإلكتروني واضغط رابط التأكيد، ثم سجّل الدخول.";
+      return;
+    }
+
+    currentUser = data.user;
+    isDirector = false;
     hideMarketAuth();
-    el("market").classList.add("hidden");
-    el("sellerPortal").classList.remove("hidden");
-    await loadSellerPortal();
-  }catch(e){el("customerMessage").textContent="تعذر إنشاء الحساب: "+e.message}
+    await checkUserRoleAndRedirect();
+
+  }catch(e){
+    el("customerMessage").textContent =
+      "تعذر إنشاء الحساب: " + e.message;
+  }
 }
 
 async function customerLogout(){await db.auth.signOut();currentUser=null;mySellerId=null;el("sellerPortal").classList.add("hidden");el("market").classList.remove("hidden");showMarketAuth()}
