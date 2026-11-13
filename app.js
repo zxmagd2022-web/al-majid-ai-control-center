@@ -1,7 +1,8 @@
+
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 2.0
+   Version: 3.0
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -19,17 +20,8 @@ const supabaseClient = window.supabase.createClient(
 
 // 2. APPLICATION STATE
 let localEmployees = [];
+let localProducts = [];
 let isLoading = false;
-
-let localProducts = [
-    {
-        id: 1,
-        title: 'AI Customer Service Employee',
-        desc: 'Smart customer service available 24/7',
-        price: 'Available on request',
-        approved: true
-    }
-];
 
 // 3. ELEMENT HELPERS
 function getElement(id) {
@@ -38,12 +30,8 @@ function getElement(id) {
 
 function setMessage(element, message, color) {
     if (!element) return;
-
     element.textContent = message;
-
-    if (color) {
-        element.style.color = color;
-    }
+    if (color) element.style.color = color;
 }
 
 function showMessage(message) {
@@ -61,19 +49,15 @@ function getErrorMessage(error) {
 
 // 4. VERIFY ACTIVE DIRECTOR
 async function verifyActiveDirector() {
-    const {
-        data: userData,
-        error: userError
-    } = await supabaseClient.auth.getUser();
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
 
     if (userError || !userData?.user) {
         return false;
     }
 
-    const {
-        data,
-        error
-    } = await supabaseClient.rpc('is_active_director');
+    const { data, error } =
+        await supabaseClient.rpc('is_active_director');
 
     if (error) {
         console.error('Director verification error:', error);
@@ -94,21 +78,13 @@ function showSection(sectionId) {
 
     sections.forEach(id => {
         const section = getElement(id);
-
-        if (section) {
-            section.classList.add('hidden');
-        }
+        if (section) section.classList.add('hidden');
     });
 
     const target = getElement(sectionId);
+    if (target) target.classList.remove('hidden');
 
-    if (target) {
-        target.classList.remove('hidden');
-    }
-
-    if (sectionId === 'marketSection') {
-        renderMarket();
-    }
+    if (sectionId === 'marketSection') renderMarket();
 }
 
 function switchTab(tabId) {
@@ -117,10 +93,7 @@ function switchTab(tabId) {
     });
 
     const target = getElement(tabId);
-
-    if (target) {
-        target.classList.remove('hidden');
-    }
+    if (target) target.classList.remove('hidden');
 }
 
 // 6. ADMIN LOGIN
@@ -145,12 +118,11 @@ async function loginAdmin() {
     );
 
     try {
-        const {
-            error
-        } = await supabaseClient.auth.signInWithPassword({
-            email,
-            password
-        });
+        const { error } =
+            await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
 
         if (error) throw error;
 
@@ -158,19 +130,14 @@ async function loginAdmin() {
 
         if (!isDirector) {
             await supabaseClient.auth.signOut();
-
-            throw new Error(
-                'هذا الحساب ليس حساب مدير نشط.'
-            );
+            throw new Error('هذا الحساب ليس حساب مدير نشط.');
         }
 
         if (getElement('adminPassword')) {
             getElement('adminPassword').value = '';
         }
 
-        // Load protected data before opening dashboard.
         await loadDashboardData();
-
         showSection('dashboardSection');
 
         setMessage(
@@ -181,9 +148,7 @@ async function loginAdmin() {
 
     } catch (error) {
         console.error('Login error:', error);
-
         await supabaseClient.auth.signOut();
-
         showSection('adminLoginSection');
 
         setMessage(
@@ -197,14 +162,10 @@ async function loginAdmin() {
 // 7. ADMIN LOGOUT
 async function logoutAdmin() {
     try {
-        const {
-            error
-        } = await supabaseClient.auth.signOut();
-
+        const { error } = await supabaseClient.auth.signOut();
         if (error) throw error;
 
         localEmployees = [];
-
         renderEmployees();
         showSection('adminLoginSection');
 
@@ -215,11 +176,7 @@ async function logoutAdmin() {
         );
 
     } catch (error) {
-        console.error('Logout error:', error);
-
-        showError(
-            'تعذر تسجيل الخروج: ' + getErrorMessage(error)
-        );
+        showError('تعذر تسجيل الخروج: ' + getErrorMessage(error));
     }
 }
 
@@ -234,17 +191,12 @@ async function loadDashboardData() {
 
         if (!isDirector) {
             await supabaseClient.auth.signOut();
-
             localEmployees = [];
             renderEmployees();
-
             throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
-        const {
-            data,
-            error
-        } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('ai_employees')
             .select('*')
             .order('created_at', { ascending: false });
@@ -252,14 +204,12 @@ async function loadDashboardData() {
         if (error) throw error;
 
         localEmployees = Array.isArray(data) ? data : [];
-
         renderEmployees();
 
         return true;
 
     } catch (error) {
         console.error('Dashboard loading error:', error);
-
         throw error;
 
     } finally {
@@ -278,9 +228,7 @@ async function addEmployee() {
     }
 
     try {
-        const isDirector = await verifyActiveDirector();
-
-        if (!isDirector) {
+        if (!(await verifyActiveDirector())) {
             throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
@@ -290,10 +238,7 @@ async function addEmployee() {
             status: 'جاهز'
         };
 
-        const {
-            data,
-            error
-        } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('ai_employees')
             .insert([newEmployee])
             .select()
@@ -302,7 +247,6 @@ async function addEmployee() {
         if (error) throw error;
 
         localEmployees.unshift(data);
-
         renderEmployees();
 
         getElement('empName').value = '';
@@ -312,14 +256,148 @@ async function addEmployee() {
 
     } catch (error) {
         console.error('Add employee error:', error);
-
-        showError(
-            'لم يتم حفظ الموظف: ' + getErrorMessage(error)
-        );
+        showError('لم يتم حفظ الموظف: ' + getErrorMessage(error));
     }
 }
 
-// 10. DISPLAY EMPLOYEES SAFELY
+// 10. EDIT AI EMPLOYEE
+async function editAIEmployee(index) {
+    const emp = localEmployees[index];
+    if (!emp) return;
+
+    const newName = prompt('أدخل اسم الموظف الجديد:', emp.name || '');
+    if (newName === null) return;
+
+    const cleanName = newName.trim();
+    if (!cleanName) {
+        showError('اسم الموظف لا يمكن أن يكون فارغاً.');
+        return;
+    }
+
+    const newRole = prompt(
+        'أدخل الدور أو تعليمات الموظف الجديدة:',
+        emp.role || ''
+    );
+
+    if (newRole === null) return;
+
+    const cleanRole = newRole.trim();
+    if (!cleanRole) {
+        showError('دور الموظف لا يمكن أن يكون فارغاً.');
+        return;
+    }
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('ai_employees')
+            .update({
+                name: cleanName,
+                role: cleanRole
+            })
+            .eq('id', emp.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localEmployees[index] = data;
+        renderEmployees();
+
+        showMessage('تم تعديل بيانات الموظف وحفظها بنجاح.');
+
+    } catch (error) {
+        console.error('Edit employee error:', error);
+        showError('تعذر تعديل الموظف: ' + getErrorMessage(error));
+    }
+}
+
+// 11. CHANGE EMPLOYEE STATUS
+async function changeAIEmployeeStatus(index) {
+    const emp = localEmployees[index];
+    if (!emp) return;
+
+    const newStatus = prompt(
+        'اختر الحالة الجديدة بكتابة واحدة من الحالات التالية:\n\nجاهز\nقيد العمل\nمتوقف',
+        emp.status || 'جاهز'
+    );
+
+    if (newStatus === null) return;
+
+    const allowedStatuses = ['جاهز', 'قيد العمل', 'متوقف'];
+
+    if (!allowedStatuses.includes(newStatus.trim())) {
+        showError('الحالة غير صحيحة. استخدم: جاهز أو قيد العمل أو متوقف.');
+        return;
+    }
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('ai_employees')
+            .update({ status: newStatus.trim() })
+            .eq('id', emp.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localEmployees[index] = data;
+        renderEmployees();
+
+        showMessage('تم تحديث حالة الموظف بنجاح.');
+
+    } catch (error) {
+        console.error('Status update error:', error);
+        showError('تعذر تغيير الحالة: ' + getErrorMessage(error));
+    }
+}
+
+// 12. DELETE AI EMPLOYEE
+async function deleteAIEmployee(index) {
+    const emp = localEmployees[index];
+    if (!emp) return;
+
+    const confirmed = confirm(
+        'هل أنت متأكد من حذف الموظف "' +
+        (emp.name || '') +
+        '" نهائياً؟\n\nلا يمكن التراجع عن الحذف.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { error } = await supabaseClient
+            .from('ai_employees')
+            .delete()
+            .eq('id', emp.id);
+
+        if (error) throw error;
+
+        localEmployees = localEmployees.filter(
+            employee => employee.id !== emp.id
+        );
+
+        renderEmployees();
+        showMessage('تم حذف الموظف من قاعدة البيانات.');
+
+    } catch (error) {
+        console.error('Delete employee error:', error);
+        showError('تعذر حذف الموظف: ' + getErrorMessage(error));
+    }
+}
+
+// 13. DISPLAY EMPLOYEES
 function renderEmployees() {
     const list = getElement('employeesList');
     const statEl = getElement('statEmployees');
@@ -334,10 +412,8 @@ function renderEmployees() {
 
     if (localEmployees.length === 0) {
         const empty = document.createElement('li');
-
         empty.textContent = 'لا يوجد موظفون مسجلون حالياً.';
         empty.style.padding = '12px';
-
         list.appendChild(empty);
         return;
     }
@@ -348,8 +424,7 @@ function renderEmployees() {
         li.style.padding = '12px';
         li.style.borderBottom = '1px solid var(--border-color)';
         li.style.display = 'flex';
-        li.style.justifyContent = 'space-between';
-        li.style.alignItems = 'center';
+        li.style.flexDirection = 'column';
         li.style.gap = '10px';
 
         const details = document.createElement('div');
@@ -368,26 +443,45 @@ function renderEmployees() {
 
         details.append(name, role, status);
 
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'secondary';
-        button.style.padding = '6px 12px';
-        button.style.fontSize = '12px';
-        button.textContent = 'عرض التفاصيل';
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.flexWrap = 'wrap';
+        buttons.style.gap = '6px';
 
-        button.addEventListener('click', function () {
-            testAIEmployee(index);
-        });
+        function createActionButton(label, className, action) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.className = className;
+            button.style.padding = '7px 10px';
+            button.style.fontSize = '12px';
+            button.addEventListener('click', action);
+            return button;
+        }
 
-        li.append(details, button);
+        buttons.append(
+            createActionButton('عرض التفاصيل', 'secondary', () => {
+                testAIEmployee(index);
+            }),
+            createActionButton('تعديل', 'secondary', () => {
+                editAIEmployee(index);
+            }),
+            createActionButton('تغيير الحالة', 'secondary', () => {
+                changeAIEmployeeStatus(index);
+            }),
+            createActionButton('حذف', 'secondary', () => {
+                deleteAIEmployee(index);
+            })
+        );
+
+        li.append(details, buttons);
         list.appendChild(li);
     });
 }
 
-// 11. EMPLOYEE DETAILS
+// 14. EMPLOYEE DETAILS
 function testAIEmployee(index) {
     const emp = localEmployees[index];
-
     if (!emp) return;
 
     showMessage(
@@ -395,12 +489,11 @@ function testAIEmployee(index) {
         'الاسم: ' + (emp.name || '') +
         '\nالوظيفة: ' + (emp.role || '') +
         '\nالحالة: ' + (emp.status || 'غير محددة') +
-        '\n\nهذا عرض تجريبي للبيانات فقط. ' +
-        'لم يتم تشغيل ذكاء اصطناعي فعلي.'
+        '\n\nهذا عرض للبيانات فقط. لم يتم تشغيل ذكاء اصطناعي فعلي.'
     );
 }
 
-// 12. ADD MARKET PRODUCT
+// 15. ADD MARKET PRODUCT
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
     const desc = getElement('productDesc')?.value.trim();
@@ -416,15 +509,13 @@ function addProduct() {
         return;
     }
 
-    const newProduct = {
+    localProducts.push({
         id: Date.now(),
         title,
         desc,
         price: price + ' ₦',
         approved: false
-    };
-
-    localProducts.push(newProduct);
+    });
 
     setMessage(
         statusEl,
@@ -439,14 +530,13 @@ function addProduct() {
     renderMarket();
 }
 
-// 13. DISPLAY APPROVED PRODUCTS
+// 16. DISPLAY APPROVED PRODUCTS
 function renderMarket() {
     const query = (
         getElement('searchMarket')?.value || ''
     ).trim().toLowerCase();
 
     const grid = getElement('marketGrid');
-
     if (!grid) return;
 
     grid.replaceChildren();
@@ -458,10 +548,7 @@ function renderMarket() {
 
     if (approvedProducts.length === 0) {
         const emptyMessage = document.createElement('p');
-
-        emptyMessage.textContent =
-            'لا توجد منتجات معتمدة حالياً.';
-
+        emptyMessage.textContent = 'لا توجد منتجات معتمدة حالياً.';
         grid.appendChild(emptyMessage);
         return;
     }
@@ -487,7 +574,7 @@ function renderMarket() {
     });
 }
 
-// 14. MARKET SEARCH
+// 17. MARKET SEARCH
 function initializeMarketSearch() {
     const search = getElement('searchMarket');
 
@@ -497,32 +584,30 @@ function initializeMarketSearch() {
     }
 }
 
-// 15. INITIALIZE APPLICATION
+// 18. INITIALIZE APPLICATION
 function initializeApp() {
     initializeMarketSearch();
-
     localEmployees = [];
-
     renderEmployees();
     showSection('adminLoginSection');
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener(
-        'DOMContentLoaded',
-        initializeApp
-    );
+    document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
     initializeApp();
 }
 
-// 16. EXPOSE FUNCTIONS FOR HTML BUTTONS
+// 19. EXPOSE FUNCTIONS FOR HTML BUTTONS
 window.showSection = showSection;
 window.switchTab = switchTab;
 window.loginAdmin = loginAdmin;
 window.logoutAdmin = logoutAdmin;
 window.loadDashboardData = loadDashboardData;
 window.addEmployee = addEmployee;
+window.editAIEmployee = editAIEmployee;
+window.changeAIEmployeeStatus = changeAIEmployeeStatus;
+window.deleteAIEmployee = deleteAIEmployee;
 window.testAIEmployee = testAIEmployee;
 window.addProduct = addProduct;
 window.renderMarket = renderMarket;
