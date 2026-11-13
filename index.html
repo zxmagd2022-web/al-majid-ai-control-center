@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مركز التحكم بالذكاء الاصطناعي في الماجد</title>
-    <!-- مكتبة Supabase للربط بقاعدة البيانات -->
+    <!-- مكتبة Supabase للاتصال بقاعدة البيانات والمصادقة -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -30,7 +30,7 @@
             background-color: var(--bg-dark);
             color: var(--text-light);
             line-height: 1.6;
-            padding: 20px;
+            padding: 15px;
         }
 
         .container {
@@ -40,17 +40,17 @@
 
         header {
             text-align: center;
-            padding: 25px;
+            padding: 25px 15px;
             background: var(--card-bg);
             border-radius: 12px;
             border: 1px solid var(--border-color);
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         header h1 {
-            font-size: 24px;
+            font-size: 22px;
             color: var(--primary);
-            margin-bottom: 5px;
+            margin-bottom: 6px;
         }
 
         header p {
@@ -73,13 +73,8 @@
             padding-bottom: 10px;
         }
 
-        .hidden {
-            display: none !important;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
+        .hidden { display: none !important; }
+        .form-group { margin-bottom: 15px; }
 
         label {
             display: block;
@@ -107,7 +102,7 @@
             background: var(--primary);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px 18px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
@@ -115,26 +110,21 @@
             transition: background 0.2s;
         }
 
-        button:hover {
-            background: var(--primary-hover);
-        }
+        button:hover { background: var(--primary-hover); }
+        button.secondary { background: #475569; }
+        button.secondary:hover { background: #334155; }
+        button.danger { background: var(--danger); }
 
-        button.secondary {
-            background: #475569;
-        }
-
-        button.secondary:hover {
-            background: #334155;
-        }
-
-        button.danger {
-            background: var(--danger);
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .nav-tabs {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 20px;
         }
 
@@ -146,11 +136,174 @@
 
         .stat-box {
             background: var(--bg-dark);
-            padding: 15px;
+            padding: 16px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
             text-align: center;
         }
 
         .stat-box h3 {
+            font-size: 26px;
+            color: var(--primary);
+        }
 
+        .status-msg {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--success);
+        }
+
+        @media (max-width: 600px) {
+            .btn-group button, .nav-tabs button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>مركز التحكم بالذكاء الاصطناعي في الماجد</h1>
+        <p>إدارة وكالة الماجد للتسويق والذكاء الاصطناعي</p>
+    </header>
+
+    <!-- 1. قسم تسجيل دخول الإدارة -->
+    <div id="adminLoginSection" class="card">
+        <h2>تسجيل دخول الإدارة</h2>
+        <div class="form-group">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="adminEmail" placeholder="أدخل البريد الإلكتروني للمدير">
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور">
+        </div>
+        <div class="btn-group">
+            <button onclick="loginAdmin()">تسجيل الدخول</button>
+            <button class="secondary" onclick="showSection('marketSection')">تصفح السوق الإلكتروني</button>
+        </div>
+        <p id="loginStatus" class="status-msg"></p>
+    </div>
+
+    <!-- 2. قسم السوق الإلكتروني -->
+    <div id="marketSection" class="card hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2 style="border: none; margin: 0;">السوق الإلكتروني</h2>
+            <div class="btn-group">
+                <button class="secondary" onclick="showSection('sellerSection')">بوابة البائعين</button>
+                <button class="secondary" onclick="showSection('adminLoginSection')">دخول الإدارة</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <input type="text" id="searchMarket" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." onkeyup="renderMarket()">
+        </div>
+        <div id="marketGrid" class="grid">
+            <div class="stat-box">
+                <h4>موظف خدمة عملاء AI</h4>
+                <p style="color: var(--text-muted); font-size: 13px; margin: 8px 0;">رد آلي ذكي على مدار الساعة</p>
+                <strong style="color: var(--success);">متاح للطلب</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. بوابة البائعين -->
+    <div id="sellerSection" class="card hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2 style="border: none; margin: 0;">بوابة البائعين - إضافة منتج</h2>
+            <button class="secondary" onclick="showSection('marketSection')">العودة للسوق</button>
+        </div>
+        <div class="form-group">
+            <label>اسم المنتج أو الخدمة</label>
+            <input type="text" id="productTitle" placeholder="مثال: بوت واتساب للرد التلقائي">
+        </div>
+        <div class="form-group">
+            <label>وصف المنتج</label>
+            <textarea id="productDesc" rows="3" placeholder="اكتب تفاصيل المنتج..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>السعر</label>
+            <input type="number" id="productPrice" step="0.01" placeholder="0.00">
+        </div>
+        <button onclick="addProduct()">إرسال المنتج للمراجعة</button>
+        <p id="sellerStatus" class="status-msg"></p>
+    </div>
+
+    <!-- 4. لوحة التحكم الرئيسية -->
+    <div id="dashboardSection" class="hidden">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span>مرحباً بك في مركز التحكم الآمن</span>
+                <button class="danger" onclick="logoutAdmin()">تسجيل الخروج</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button onclick="switchTab('statsTab')">الإحصائيات</button>
+            <button class="secondary" onclick="switchTab('employeesTab')">الموظفين AI</button>
+            <button class="secondary" onclick="switchTab('clientsTab')">العملاء</button>
+            <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
+            <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
+        </div>
+
+        <!-- تبويب الإحصائيات -->
+        <div id="statsTab" class="card tab-content">
+            <h2>نظرة عامة على الأداء</h2>
+            <div class="grid">
+                <div class="stat-box">
+                    <h3 id="statEmployees">0</h3>
+                    <p>موظفو الذكاء الاصطناعي</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="statClients">0</h3>
+                    <p>العملاء النشطون</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="statProjects">0</h3>
+                    <p>المشاريع القائمة</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب الموظفين -->
+        <div id="employeesTab" class="card tab-content hidden">
+            <h2>إدارة موظفي الذكاء الاصطناعي</h2>
+            <div class="form-group">
+                <label>اسم الموظف الذكي</label>
+                <input type="text" id="empName" placeholder="مثال: مساعد المبيعات الذكي">
+            </div>
+            <div class="form-group">
+                <label>دور الموظف / تعليمات النظام (System Prompt)</label>
+                <input type="text" id="empRole" placeholder="مثال: خدمة عملاء متخصصة">
+            </div>
+            <button onclick="addEmployee()">إضافة موظف AI</button>
+            <ul id="employeesList" style="margin-top: 15px; list-style: none;"></ul>
+        </div>
+
+        <!-- تبويب العملاء -->
+        <div id="clientsTab" class="card tab-content hidden">
+            <h2>إدارة العملاء</h2>
+            <p style="color: var(--text-muted);">قائمة العملاء المسجلين وقاعدة البيانات المرتبطة.</p>
+            <div id="clientsList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- تبويب المشاريع -->
+        <div id="projectsTab" class="card tab-content hidden">
+            <h2>إدارة المشاريع</h2>
+            <p style="color: var(--text-muted);">متابعة حالة المشاريع الجارية للوكالة.</p>
+            <div id="projectsList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- تبويب المالية -->
+        <div id="financeTab" class="card tab-content hidden">
+            <h2>الإيرادات والمصروفات</h2>
+            <p style="color: var(--text-muted);">السجل المالي وإدارة ميزانية الوكالة.</p>
+            <div id="financeList" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- استدعاء ملف البرمجة والمنطق المستقل -->
+<script src="app.js"></script>
+</body>
+</html>
