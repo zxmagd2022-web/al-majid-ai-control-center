@@ -1,4 +1,3 @@
-
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
@@ -7,7 +6,7 @@
 
 // 1. SUPABASE CONNECTION
 const SUPABASE_URL = 'https://cafvkonbubrqsabsywry.supabase.co';
-const SUPABASE_KEY = 'Sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6';
+const SUPABASE_KEY = 'sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6';
 
 if (!window.supabase) {
     throw new Error('مكتبة Supabase غير محمّلة.');
@@ -402,8 +401,6 @@ function testAIEmployee(index) {
 }
 
 // 12. ADD MARKET PRODUCT
-// Products remain temporary until the products table
-// and its security policies are verified.
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
     const desc = getElement('productDesc')?.value.trim();
