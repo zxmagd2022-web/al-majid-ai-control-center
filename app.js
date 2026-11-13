@@ -2,6 +2,7 @@
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
+   Version: 2.0
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -9,7 +10,7 @@ const SUPABASE_URL = 'https://cafvkonbubrqsabsywry.supabase.co';
 const SUPABASE_KEY = 'Sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6';
 
 if (!window.supabase) {
-    throw new Error('Supabase library is not loaded.');
+    throw new Error('مكتبة Supabase غير محمّلة.');
 }
 
 const supabaseClient = window.supabase.createClient(
@@ -19,6 +20,7 @@ const supabaseClient = window.supabase.createClient(
 
 // 2. APPLICATION STATE
 let localEmployees = [];
+let isLoading = false;
 
 let localProducts = [
     {
@@ -30,7 +32,7 @@ let localProducts = [
     }
 ];
 
-// 3. HELPER FUNCTIONS
+// 3. ELEMENT HELPERS
 function getElement(id) {
     return document.getElementById(id);
 }
@@ -45,28 +47,38 @@ function setMessage(element, message, color) {
     }
 }
 
-function showError(message) {
+function showMessage(message) {
     alert(message);
 }
 
-// 4. VERIFY AUTHENTICATED ACTIVE DIRECTOR
+function showError(message) {
+    console.error(message);
+    showMessage(message);
+}
+
+function getErrorMessage(error) {
+    return error?.message || 'حدث خطأ غير معروف.';
+}
+
+// 4. VERIFY ACTIVE DIRECTOR
 async function verifyActiveDirector() {
-    const { data: userData, error: userError } =
-        await supabaseClient.auth.getUser();
+    const {
+        data: userData,
+        error: userError
+    } = await supabaseClient.auth.getUser();
 
     if (userError || !userData?.user) {
         return false;
     }
 
-    const { data, error } = await supabaseClient.rpc(
-        'is_active_director'
-    );
+    const {
+        data,
+        error
+    } = await supabaseClient.rpc('is_active_director');
 
     if (error) {
         console.error('Director verification error:', error);
-        throw new Error(
-            'Unable to verify director permissions.'
-        );
+        throw new Error('تعذر التحقق من صلاحيات المدير.');
     }
 
     return data === true;
@@ -121,7 +133,7 @@ async function loginAdmin() {
     if (!email || !password) {
         setMessage(
             statusMsg,
-            'Please enter your email and password.',
+            'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
             'var(--danger)'
         );
         return;
@@ -129,12 +141,14 @@ async function loginAdmin() {
 
     setMessage(
         statusMsg,
-        'Verifying account and director permissions...',
+        'جارٍ التحقق من الحساب وصلاحيات المدير...',
         'var(--primary)'
     );
 
     try {
-        const { error } = await supabaseClient.auth.signInWithPassword({
+        const {
+            error
+        } = await supabaseClient.auth.signInWithPassword({
             email,
             password
         });
@@ -147,7 +161,7 @@ async function loginAdmin() {
             await supabaseClient.auth.signOut();
 
             throw new Error(
-                'This account is not an active director.'
+                'هذا الحساب ليس حساب مدير نشط.'
             );
         }
 
@@ -155,22 +169,27 @@ async function loginAdmin() {
             getElement('adminPassword').value = '';
         }
 
+        // Load protected data before opening dashboard.
+        await loadDashboardData();
+
         showSection('dashboardSection');
 
         setMessage(
             statusMsg,
-            'Login successful.',
+            'تم تسجيل الدخول بنجاح.',
             'var(--success)'
         );
-
-        await loadDashboardData();
 
     } catch (error) {
         console.error('Login error:', error);
 
+        await supabaseClient.auth.signOut();
+
+        showSection('adminLoginSection');
+
         setMessage(
             statusMsg,
-            'Login failed: ' + error.message,
+            'فشل تسجيل الدخول: ' + getErrorMessage(error),
             'var(--danger)'
         );
     }
@@ -179,7 +198,9 @@ async function loginAdmin() {
 // 7. ADMIN LOGOUT
 async function logoutAdmin() {
     try {
-        const { error } = await supabaseClient.auth.signOut();
+        const {
+            error
+        } = await supabaseClient.auth.signOut();
 
         if (error) throw error;
 
@@ -188,41 +209,62 @@ async function logoutAdmin() {
         renderEmployees();
         showSection('adminLoginSection');
 
+        setMessage(
+            getElement('loginStatus'),
+            'تم تسجيل الخروج.',
+            'var(--success)'
+        );
+
     } catch (error) {
         console.error('Logout error:', error);
-        showError('Unable to log out. Please try again.');
+
+        showError(
+            'تعذر تسجيل الخروج: ' + getErrorMessage(error)
+        );
     }
 }
 
 // 8. LOAD DASHBOARD DATA
 async function loadDashboardData() {
+    if (isLoading) return;
+
+    isLoading = true;
+
     try {
         const isDirector = await verifyActiveDirector();
 
         if (!isDirector) {
             await supabaseClient.auth.signOut();
-            showSection('adminLoginSection');
 
-            showError('Director access is required.');
-            return;
+            localEmployees = [];
+            renderEmployees();
+
+            throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
-        const { data, error } = await supabaseClient
+        const {
+            data,
+            error
+        } = await supabaseClient
             .from('ai_employees')
-            .select('*');
+            .select('*')
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        localEmployees = data || [];
+        localEmployees = Array.isArray(data) ? data : [];
 
         renderEmployees();
 
-    } catch (error) {
-        console.error('Dashboard error:', error);
+        return true;
 
-        showError(
-            'Unable to load employees: ' + error.message
-        );
+    } catch (error) {
+        console.error('Dashboard loading error:', error);
+
+        throw error;
+
+    } finally {
+        isLoading = false;
     }
 }
 
@@ -232,7 +274,7 @@ async function addEmployee() {
     const role = getElement('empRole')?.value.trim();
 
     if (!name || !role) {
-        showError('Please enter the employee name and job role.');
+        showError('يرجى إدخال اسم الموظف والمسمى الوظيفي.');
         return;
     }
 
@@ -240,17 +282,19 @@ async function addEmployee() {
         const isDirector = await verifyActiveDirector();
 
         if (!isDirector) {
-            throw new Error('Director permission is required.');
+            throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
         const newEmployee = {
-            name: name,
-            role: role,
-            status: 'جاهز',
-            created_at: new Date().toISOString()
+            name,
+            role,
+            status: 'جاهز'
         };
 
-        const { data, error } = await supabaseClient
+        const {
+            data,
+            error
+        } = await supabaseClient
             .from('ai_employees')
             .insert([newEmployee])
             .select()
@@ -258,20 +302,20 @@ async function addEmployee() {
 
         if (error) throw error;
 
-        localEmployees.push(data);
+        localEmployees.unshift(data);
 
         renderEmployees();
 
         getElement('empName').value = '';
         getElement('empRole').value = '';
 
-        showError('Employee saved successfully.');
+        showMessage('تم حفظ الموظف في قاعدة البيانات بنجاح.');
 
     } catch (error) {
         console.error('Add employee error:', error);
 
         showError(
-            'Employee was not saved: ' + error.message
+            'لم يتم حفظ الموظف: ' + getErrorMessage(error)
         );
     }
 }
@@ -289,6 +333,16 @@ function renderEmployees() {
 
     list.replaceChildren();
 
+    if (localEmployees.length === 0) {
+        const empty = document.createElement('li');
+
+        empty.textContent = 'لا يوجد موظفون مسجلون حالياً.';
+        empty.style.padding = '12px';
+
+        list.appendChild(empty);
+        return;
+    }
+
     localEmployees.forEach((emp, index) => {
         const li = document.createElement('li');
 
@@ -297,24 +351,30 @@ function renderEmployees() {
         li.style.display = 'flex';
         li.style.justifyContent = 'space-between';
         li.style.alignItems = 'center';
+        li.style.gap = '10px';
 
         const details = document.createElement('div');
 
         const name = document.createElement('strong');
-        name.textContent = emp.name || 'Unnamed employee';
+        name.textContent = emp.name || 'موظف بدون اسم';
 
         const role = document.createElement('div');
-        role.textContent = emp.role || 'No role assigned';
+        role.textContent = emp.role || 'لم يتم تحديد الوظيفة';
         role.style.color = 'var(--text-muted)';
         role.style.fontSize = '13px';
 
-        details.append(name, role);
+        const status = document.createElement('div');
+        status.textContent = 'الحالة: ' + (emp.status || 'غير محددة');
+        status.style.fontSize = '12px';
+
+        details.append(name, role, status);
 
         const button = document.createElement('button');
+        button.type = 'button';
         button.className = 'secondary';
         button.style.padding = '6px 12px';
         button.style.fontSize = '12px';
-        button.textContent = 'اختبار الموظف';
+        button.textContent = 'عرض التفاصيل';
 
         button.addEventListener('click', function () {
             testAIEmployee(index);
@@ -325,23 +385,25 @@ function renderEmployees() {
     });
 }
 
-// 11. TEST AI EMPLOYEE
+// 11. EMPLOYEE DETAILS
 function testAIEmployee(index) {
     const emp = localEmployees[index];
 
     if (!emp) return;
 
-    alert(
-        'الموظف: ' + (emp.name || '') +
-        '\nالدور: ' + (emp.role || '') +
+    showMessage(
+        'تفاصيل الموظف\n\n' +
+        'الاسم: ' + (emp.name || '') +
+        '\nالوظيفة: ' + (emp.role || '') +
         '\nالحالة: ' + (emp.status || 'غير محددة') +
-        '\n\nهذا اختبار للواجهة فقط، وليس تشغيلًا فعليًا للذكاء الاصطناعي.'
+        '\n\nهذا عرض تجريبي للبيانات فقط. ' +
+        'لم يتم تشغيل ذكاء اصطناعي فعلي.'
     );
 }
 
 // 12. ADD MARKET PRODUCT
-// NOTE: This currently stores products in browser memory only.
-// Database persistence will be added after the products table is verified.
+// Products remain temporary until the products table
+// and its security policies are verified.
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
     const desc = getElement('productDesc')?.value.trim();
@@ -349,14 +411,18 @@ function addProduct() {
     const statusEl = getElement('sellerStatus');
 
     if (!title || !price) {
-        showError('Please enter the product name and price.');
+        setMessage(
+            statusEl,
+            'يرجى إدخال اسم المنتج والسعر.',
+            'var(--danger)'
+        );
         return;
     }
 
     const newProduct = {
         id: Date.now(),
-        title: title,
-        desc: desc,
+        title,
+        desc,
         price: price + ' ₦',
         approved: false
     };
@@ -365,7 +431,7 @@ function addProduct() {
 
     setMessage(
         statusEl,
-        'تم تسجيل المنتج مؤقتاً في المتصفح. لم يُحفظ في قاعدة البيانات.',
+        'تم تسجيل المنتج مؤقتاً في المتصفح فقط. لم يُحفظ في قاعدة البيانات ولم يُنشر.',
         'var(--success)'
     );
 
@@ -380,7 +446,7 @@ function addProduct() {
 function renderMarket() {
     const query = (
         getElement('searchMarket')?.value || ''
-    ).toLowerCase();
+    ).trim().toLowerCase();
 
     const grid = getElement('marketGrid');
 
@@ -428,8 +494,9 @@ function renderMarket() {
 function initializeMarketSearch() {
     const search = getElement('searchMarket');
 
-    if (search) {
+    if (search && !search.dataset.initialized) {
         search.addEventListener('input', renderMarket);
+        search.dataset.initialized = 'true';
     }
 }
 
@@ -437,6 +504,9 @@ function initializeMarketSearch() {
 function initializeApp() {
     initializeMarketSearch();
 
+    localEmployees = [];
+
+    renderEmployees();
     showSection('adminLoginSection');
 }
 
