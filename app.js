@@ -1,29 +1,99 @@
-// ==========================================
-// 1. إعدادات الاتصال بـ Supabase (تم ربطها بنجاح)
-// ==========================================
+
+/* =====================================================
+   AL MAJID AI CONTROL CENTER
+   Main application: app.js
+   ===================================================== */
+
+// 1. SUPABASE CONNECTION
 const SUPABASE_URL = 'https://cafvkonbubrqsabsywry.supabase.co';
 const SUPABASE_KEY = 'Sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6';
 
-// تهيئة العميل بأمان
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if (!window.supabase) {
+    throw new Error('Supabase library is not loaded.');
+}
 
-// مصفوفات البيانات المؤقتة والنشطة
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+);
+
+// 2. APPLICATION STATE
 let localEmployees = [];
+
 let localProducts = [
-    { id: 1, title: 'موظف خدمة عملاء AI', desc: 'رد آلي ذكي على مدار الساعة', price: 'متاح للطلب', approved: true }
+    {
+        id: 1,
+        title: 'AI Customer Service Employee',
+        desc: 'Smart customer service available 24/7',
+        price: 'Available on request',
+        approved: true
+    }
 ];
 
-// ==========================================
-// 2. التنقل بين الأقسام والتبويبات
-// ==========================================
+// 3. HELPER FUNCTIONS
+function getElement(id) {
+    return document.getElementById(id);
+}
+
+function setMessage(element, message, color) {
+    if (!element) return;
+
+    element.textContent = message;
+
+    if (color) {
+        element.style.color = color;
+    }
+}
+
+function showError(message) {
+    alert(message);
+}
+
+// 4. VERIFY AUTHENTICATED ACTIVE DIRECTOR
+async function verifyActiveDirector() {
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
+
+    if (userError || !userData?.user) {
+        return false;
+    }
+
+    const { data, error } = await supabaseClient.rpc(
+        'is_active_director'
+    );
+
+    if (error) {
+        console.error('Director verification error:', error);
+        throw new Error(
+            'Unable to verify director permissions.'
+        );
+    }
+
+    return data === true;
+}
+
+// 5. NAVIGATION
 function showSection(sectionId) {
-    const sections = ['adminLoginSection', 'marketSection', 'sellerSection', 'dashboardSection'];
+    const sections = [
+        'adminLoginSection',
+        'marketSection',
+        'sellerSection',
+        'dashboardSection'
+    ];
+
     sections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
+        const section = getElement(id);
+
+        if (section) {
+            section.classList.add('hidden');
+        }
     });
-    const target = document.getElementById(sectionId);
-    if (target) target.classList.remove('hidden');
+
+    const target = getElement(sectionId);
+
+    if (target) {
+        target.classList.remove('hidden');
+    }
 
     if (sectionId === 'marketSection') {
         renderMarket();
@@ -31,152 +101,255 @@ function showSection(sectionId) {
 }
 
 function switchTab(tabId) {
-    const tabs = document.querySelectorAll('.tab-content');
-    tabs.forEach(tab => tab.classList.add('hidden'));
-    const target = document.getElementById(tabId);
-    if (target) target.classList.remove('hidden');
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+
+    const target = getElement(tabId);
+
+    if (target) {
+        target.classList.remove('hidden');
+    }
 }
 
-// ==========================================
-// 3. تسجيل الدخول والتحقق من صلاحية المدير
-// ==========================================
+// 6. ADMIN LOGIN
 async function loginAdmin() {
-    const email = document.getElementById('adminEmail').value.trim();
-    const password = document.getElementById('adminPassword').value;
-    const statusMsg = document.getElementById('loginStatus');
+    const email = getElement('adminEmail')?.value.trim();
+    const password = getElement('adminPassword')?.value;
+    const statusMsg = getElement('loginStatus');
 
     if (!email || !password) {
-        statusMsg.style.color = 'var(--danger)';
-        statusMsg.innerText = 'يرجى إدخال البريد الإلكتروني وكلمة المرور';
+        setMessage(
+            statusMsg,
+            'Please enter your email and password.',
+            'var(--danger)'
+        );
         return;
     }
 
-    statusMsg.style.color = 'var(--primary)';
-    statusMsg.innerText = 'جاري التحقق من الحساب وصلاحيات الإدارة...';
+    setMessage(
+        statusMsg,
+        'Verifying account and director permissions...',
+        'var(--primary)'
+    );
 
     try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password
+        const { error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password
         });
 
         if (error) throw error;
 
-        statusMsg.style.color = 'var(--success)';
-        statusMsg.innerText = 'تم التحقق بنجاح! جاري فتح مركز التحكم...';
+        const isDirector = await verifyActiveDirector();
 
-        setTimeout(() => {
-            showSection('dashboardSection');
-            statusMsg.innerText = '';
-            loadDashboardData();
-        }, 800);
+        if (!isDirector) {
+            await supabaseClient.auth.signOut();
 
-    } catch (err) {
-        statusMsg.style.color = 'var(--danger)';
-        statusMsg.innerText = 'فشل الدخول: ' + (err.message || 'تأكد من صحة البيانات.');
+            throw new Error(
+                'This account is not an active director.'
+            );
+        }
+
+        if (getElement('adminPassword')) {
+            getElement('adminPassword').value = '';
+        }
+
+        showSection('dashboardSection');
+
+        setMessage(
+            statusMsg,
+            'Login successful.',
+            'var(--success)'
+        );
+
+        await loadDashboardData();
+
+    } catch (error) {
+        console.error('Login error:', error);
+
+        setMessage(
+            statusMsg,
+            'Login failed: ' + error.message,
+            'var(--danger)'
+        );
     }
 }
 
+// 7. ADMIN LOGOUT
 async function logoutAdmin() {
-    await supabaseClient.auth.signOut();
-    showSection('adminLoginSection');
+    try {
+        const { error } = await supabaseClient.auth.signOut();
+
+        if (error) throw error;
+
+        localEmployees = [];
+
+        renderEmployees();
+        showSection('adminLoginSection');
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        showError('Unable to log out. Please try again.');
+    }
 }
 
-// ==========================================
-// 4. تحميل البيانات الحقيقية من Supabase
-// ==========================================
+// 8. LOAD DASHBOARD DATA
 async function loadDashboardData() {
     try {
-        const { data: employees, error: empErr } = await supabaseClient
+        const isDirector = await verifyActiveDirector();
+
+        if (!isDirector) {
+            await supabaseClient.auth.signOut();
+            showSection('adminLoginSection');
+
+            showError('Director access is required.');
+            return;
+        }
+
+        const { data, error } = await supabaseClient
             .from('ai_employees')
             .select('*');
 
-        if (!empErr && employees) {
-            localEmployees = employees;
-            renderEmployees();
-        }
-    } catch (e) {
-        console.log('جداول البيانات قيد التأسيس:', e.message);
+        if (error) throw error;
+
+        localEmployees = data || [];
+
+        renderEmployees();
+
+    } catch (error) {
+        console.error('Dashboard error:', error);
+
+        showError(
+            'Unable to load employees: ' + error.message
+        );
     }
 }
 
-// ==========================================
-// 5. إدارة موظفي الذكاء الاصطناعي
-// ==========================================
+// 9. ADD AI EMPLOYEE
 async function addEmployee() {
-    const name = document.getElementById('empName').value.trim();
-    const role = document.getElementById('empRole').value.trim();
+    const name = getElement('empName')?.value.trim();
+    const role = getElement('empRole')?.value.trim();
 
     if (!name || !role) {
-        alert('يرجى إدخال اسم الموظف ودوره الوظيفي');
+        showError('Please enter the employee name and job role.');
         return;
     }
 
-    const newEmp = {
-        name: name,
-        role: role,
-        status: 'جاهز',
-        created_at: new Date().toISOString()
-    };
+    try {
+        const isDirector = await verifyActiveDirector();
 
-    const { data, error } = await supabaseClient
-        .from('ai_employees')
-        .insert([newEmp])
-        .select();
+        if (!isDirector) {
+            throw new Error('Director permission is required.');
+        }
 
-    if (!error && data) {
-        localEmployees.push(data[0]);
-    } else {
-        localEmployees.push(newEmp);
+        const newEmployee = {
+            name: name,
+            role: role,
+            status: 'جاهز',
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabaseClient
+            .from('ai_employees')
+            .insert([newEmployee])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localEmployees.push(data);
+
+        renderEmployees();
+
+        getElement('empName').value = '';
+        getElement('empRole').value = '';
+
+        showError('Employee saved successfully.');
+
+    } catch (error) {
+        console.error('Add employee error:', error);
+
+        showError(
+            'Employee was not saved: ' + error.message
+        );
     }
-
-    renderEmployees();
-    document.getElementById('empName').value = '';
-    document.getElementById('empRole').value = '';
 }
 
+// 10. DISPLAY EMPLOYEES SAFELY
 function renderEmployees() {
-    const list = document.getElementById('employeesList');
-    const statEl = document.getElementById('statEmployees');
+    const list = getElement('employeesList');
+    const statEl = getElement('statEmployees');
+
+    if (statEl) {
+        statEl.textContent = String(localEmployees.length);
+    }
+
     if (!list) return;
 
-    list.innerHTML = '';
-    if (statEl) statEl.innerText = localEmployees.length;
+    list.replaceChildren();
 
     localEmployees.forEach((emp, index) => {
         const li = document.createElement('li');
+
         li.style.padding = '12px';
         li.style.borderBottom = '1px solid var(--border-color)';
         li.style.display = 'flex';
         li.style.justifyContent = 'space-between';
         li.style.alignItems = 'center';
-        li.innerHTML = `
-            <div>
-                <strong>${emp.name}</strong>
-                <div style="color: var(--text-muted); font-size: 13px;">${emp.role}</div>
-            </div>
-            <button class="secondary" style="padding: 6px 12px; font-size: 12px;" onclick="testAIEmployee(${index})">اختبار الموظف</button>
-        `;
+
+        const details = document.createElement('div');
+
+        const name = document.createElement('strong');
+        name.textContent = emp.name || 'Unnamed employee';
+
+        const role = document.createElement('div');
+        role.textContent = emp.role || 'No role assigned';
+        role.style.color = 'var(--text-muted)';
+        role.style.fontSize = '13px';
+
+        details.append(name, role);
+
+        const button = document.createElement('button');
+        button.className = 'secondary';
+        button.style.padding = '6px 12px';
+        button.style.fontSize = '12px';
+        button.textContent = 'اختبار الموظف';
+
+        button.addEventListener('click', function () {
+            testAIEmployee(index);
+        });
+
+        li.append(details, button);
         list.appendChild(li);
     });
 }
 
+// 11. TEST AI EMPLOYEE
 function testAIEmployee(index) {
     const emp = localEmployees[index];
-    alert(`الموظف "${emp.name}" جاهز للعمل ضمن وكالة الماجد للتسويق.`);
+
+    if (!emp) return;
+
+    alert(
+        'الموظف: ' + (emp.name || '') +
+        '\nالدور: ' + (emp.role || '') +
+        '\nالحالة: ' + (emp.status || 'غير محددة') +
+        '\n\nهذا اختبار للواجهة فقط، وليس تشغيلًا فعليًا للذكاء الاصطناعي.'
+    );
 }
 
-// ==========================================
-// 6. إدارة السوق والموافقة المسبقة للمدير
-// ==========================================
-async function addProduct() {
-    const title = document.getElementById('productTitle').value.trim();
-    const desc = document.getElementById('productDesc').value.trim();
-    const price = document.getElementById('productPrice').value;
-    const statusEl = document.getElementById('sellerStatus');
+// 12. ADD MARKET PRODUCT
+// NOTE: This currently stores products in browser memory only.
+// Database persistence will be added after the products table is verified.
+function addProduct() {
+    const title = getElement('productTitle')?.value.trim();
+    const desc = getElement('productDesc')?.value.trim();
+    const price = getElement('productPrice')?.value.trim();
+    const statusEl = getElement('sellerStatus');
 
     if (!title || !price) {
-        alert('يرجى إدخال اسم المنتج والسعر');
+        showError('Please enter the product name and price.');
         return;
     }
 
@@ -184,43 +357,105 @@ async function addProduct() {
         id: Date.now(),
         title: title,
         desc: desc,
-        price: price + ' ر.س',
-        approved: false 
+        price: price + ' ₦',
+        approved: false
     };
 
     localProducts.push(newProduct);
 
-    statusEl.style.color = 'var(--success)';
-    statusEl.innerText = 'تم إرسال المنتج بنجاح! بانتظار مراجعة وموافقة الإدارة.';
+    setMessage(
+        statusEl,
+        'تم تسجيل المنتج مؤقتاً في المتصفح. لم يُحفظ في قاعدة البيانات.',
+        'var(--success)'
+    );
 
-    document.getElementById('productTitle').value = '';
-    document.getElementById('productDesc').value = '';
-    document.getElementById('productPrice').value = '';
+    getElement('productTitle').value = '';
+    getElement('productDesc').value = '';
+    getElement('productPrice').value = '';
 
-    setTimeout(() => {
-        statusEl.innerText = '';
-        showSection('marketSection');
-    }, 1800);
+    renderMarket();
 }
 
+// 13. DISPLAY APPROVED PRODUCTS
 function renderMarket() {
-    const query = (document.getElementById('searchMarket')?.value || '').toLowerCase();
-    const grid = document.getElementById('marketGrid');
+    const query = (
+        getElement('searchMarket')?.value || ''
+    ).toLowerCase();
+
+    const grid = getElement('marketGrid');
+
     if (!grid) return;
 
-    grid.innerHTML = '';
+    grid.replaceChildren();
 
-    const approvedProducts = localProducts.filter(p => p.approved && p.title.toLowerCase().includes(query));
+    const approvedProducts = localProducts.filter(product =>
+        product.approved &&
+        (product.title || '').toLowerCase().includes(query)
+    );
+
+    if (approvedProducts.length === 0) {
+        const emptyMessage = document.createElement('p');
+
+        emptyMessage.textContent =
+            'لا توجد منتجات معتمدة حالياً.';
+
+        grid.appendChild(emptyMessage);
+        return;
+    }
 
     approvedProducts.forEach(item => {
         const box = document.createElement('div');
         box.className = 'stat-box';
-        box.innerHTML = `
-            <h4>${item.title}</h4>
-            <p style="color: var(--text-muted); font-size: 13px; margin: 8px 0;">${item.desc}</p>
-            <strong style="color: var(--success);">${item.price}</strong>
-        `;
+
+        const title = document.createElement('h4');
+        title.textContent = item.title || '';
+
+        const description = document.createElement('p');
+        description.textContent = item.desc || '';
+        description.style.color = 'var(--text-muted)';
+        description.style.fontSize = '13px';
+        description.style.margin = '8px 0';
+
+        const price = document.createElement('strong');
+        price.textContent = item.price || '';
+
+        box.append(title, description, price);
         grid.appendChild(box);
     });
 }
 
+// 14. MARKET SEARCH
+function initializeMarketSearch() {
+    const search = getElement('searchMarket');
+
+    if (search) {
+        search.addEventListener('input', renderMarket);
+    }
+}
+
+// 15. INITIALIZE APPLICATION
+function initializeApp() {
+    initializeMarketSearch();
+
+    showSection('adminLoginSection');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeApp
+    );
+} else {
+    initializeApp();
+}
+
+// 16. EXPOSE FUNCTIONS FOR HTML BUTTONS
+window.showSection = showSection;
+window.switchTab = switchTab;
+window.loginAdmin = loginAdmin;
+window.logoutAdmin = logoutAdmin;
+window.loadDashboardData = loadDashboardData;
+window.addEmployee = addEmployee;
+window.testAIEmployee = testAIEmployee;
+window.addProduct = addProduct;
+window.renderMarket = renderMarket;
