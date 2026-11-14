@@ -308,7 +308,7 @@
             <div class="grid" style="margin-bottom: 15px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>الدولة</label>
-                    <input type="text" id="clientCountry" placeholder="مثال: نيجيريا">
+                    <input type="text" id="clientCountry" value="Nigeria" placeholder="مثال: نيجيريا">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>المدينة</label>
@@ -325,8 +325,48 @@
 
         <!-- تبويب المشاريع -->
         <div id="projectsTab" class="card tab-content hidden">
-            <h2>إدارة المشاريع</h2>
-            <p style="color: var(--text-muted);">متابعة حالة المشاريع الجارية للوكالة.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <h2 style="border: none; margin: 0;">إدارة المشاريع</h2>
+                <button onclick="openProjectModal()">+ إضافة مشروع جديد</button>
+            </div>
+            
+            <!-- نموذج إضافة مشروع -->
+            <div id="projectFormContainer" class="card hidden" style="background: var(--bg-dark); border: 1px dashed var(--primary); margin-bottom: 15px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--primary);">تفاصيل المشروع الجديد</h3>
+                <div class="form-group">
+                    <label>اسم المشروع</label>
+                    <input type="text" id="projectTitle" placeholder="مثال: حملة تسويقية لأسرة منتجة">
+                </div>
+                <div class="form-group">
+                    <label>العميل المرتبط</label>
+                    <select id="projectClientSelect">
+                        <option value="">اختر العميل...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>وصف المشروع / الخدمات المطلوبة</label>
+                    <textarea id="projectDesc" rows="2" placeholder="تفاصيل المشروع..."></textarea>
+                </div>
+                <div class="grid" style="margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>الميزانية (NGN)</label>
+                        <input type="number" id="projectBudget" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>حالة المشروع</label>
+                        <select id="projectStatus">
+                            <option value="قيد الانتظار">قيد الانتظار</option>
+                            <option value="قيد التنفيذ">قيد التنفيذ</option>
+                            <option value="مكتمل">مكتمل</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="addProject()">حفظ المشروع</button>
+                    <button class="secondary" onclick="closeProjectModal()">إلغاء</button>
+                </div>
+            </div>
+
             <div id="projectsList" style="margin-top: 15px;"></div>
         </div>
 
