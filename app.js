@@ -1,7 +1,7 @@
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 3.5 (Complete Client Management with Edit & Delete)
+   Version: 3.6 (Complete Client & Project Management)
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -20,6 +20,7 @@ const supabaseClient = window.supabase.createClient(
 // 2. APPLICATION STATE
 let localEmployees = [];
 let localClients = [];
+let localProjects = [];
 let localProducts = [];
 let isLoading = false;
 
@@ -190,8 +191,10 @@ async function logoutAdmin() {
 
         localEmployees = [];
         localClients = [];
+        localProjects = [];
         renderEmployees();
         renderClients();
+        renderProjects();
         showSection('adminLoginSection');
 
         setMessage(
@@ -218,8 +221,10 @@ async function loadDashboardData() {
             await supabaseClient.auth.signOut();
             localEmployees = [];
             localClients = [];
+            localProjects = [];
             renderEmployees();
             renderClients();
+            renderProjects();
             throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
@@ -236,6 +241,9 @@ async function loadDashboardData() {
 
         // Load clients
         await loadClients();
+
+        // Load projects
+        await loadProjects();
 
         return true;
 
@@ -549,6 +557,7 @@ async function loadClients() {
 
         localClients = Array.isArray(data) ? data : [];
         renderClients();
+        updateClientSelectOptions();
         return true;
 
     } catch (error) {
@@ -635,6 +644,24 @@ function renderClients() {
     });
 }
 
+function updateClientSelectOptions() {
+    const select = getElement('projectClientSelect');
+    if (!select) return;
+
+    select.replaceChildren();
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'اختر العميل...';
+    select.appendChild(defaultOption);
+
+    localClients.forEach(client => {
+        const opt = document.createElement('option');
+        opt.value = client.id;
+        opt.textContent = client.name + (client.business_name ? ' (' + client.business_name + ')' : '');
+        select.appendChild(opt);
+    });
+}
+
 async function addClient() {
     const name = getElement('clientName')?.value.trim();
     const business = getElement('clientBusiness')?.value.trim();
@@ -682,6 +709,7 @@ async function addClient() {
 
         localClients.unshift(data);
         renderClients();
+        updateClientSelectOptions();
 
         [
             'clientName',
@@ -766,6 +794,7 @@ async function editClient(index) {
 
         localClients[index] = data;
         renderClients();
+        updateClientSelectOptions();
 
         await logActivity('EDIT_CLIENT', {
             client_id: client.id,
@@ -810,6 +839,7 @@ async function deleteClient(index) {
         );
 
         renderClients();
+        updateClientSelectOptions();
 
         await logActivity('DELETE_CLIENT', {
             client_id: client.id,
@@ -821,6 +851,139 @@ async function deleteClient(index) {
     } catch (error) {
         console.error('Delete client error:', error);
         showError('تعذر حذف العميل: ' + getErrorMessage(error));
+    }
+}
+
+// PROJECT MANAGEMENT
+function openProjectModal() {
+    const container = getElement('projectFormContainer');
+    if (container) container.classList.remove('hidden');
+}
+
+function closeProjectModal() {
+    const container = getElement('projectFormContainer');
+    if (container) container.classList.add('hidden');
+}
+
+async function loadProjects() {
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('am_projects')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        localProjects = Array.isArray(data) ? data : [];
+        renderProjects();
+        return true;
+
+    } catch (error) {
+        console.error('Load projects error:', error);
+        return false;
+    }
+}
+
+function renderProjects() {
+    const list = getElement('projectsList');
+    const statEl = getElement('statProjects');
+
+    if (statEl) {
+        statEl.textContent = String(localProjects.length);
+    }
+
+    if (!list) return;
+
+    list.replaceChildren();
+
+    if (localProjects.length === 0) {
+        const empty = document.createElement('li');
+        empty.textContent = 'لا توجد مشاريع مسجلة حالياً.';
+        empty.style.padding = '12px';
+        list.appendChild(empty);
+        return;
+    }
+
+    localProjects.forEach(project => {
+        const li = document.createElement('li');
+        li.style.padding = '12px';
+        li.style.borderBottom = '1px solid var(--border-color)';
+        li.style.display = 'flex';
+        li.style.flexDirection = 'column';
+        li.style.gap = '6px';
+
+        const title = document.createElement('strong');
+        title.textContent = project.title || 'مشروع بدون عنوان';
+
+        const clientObj = localClients.find(c => c.id === project.client_id);
+        const clientName = clientObj ? clientObj.name : 'عميل غير محدد';
+
+        const info = document.createElement('p');
+        info.textContent = 'العميل: ' + clientName + ' | الحالة: ' + (project.status || 'قيد الانتظار') + (project.budget ? ' | الميزانية: ' + project.budget + ' NGN' : '');
+        info.style.color = 'var(--text-muted)';
+        info.style.fontSize = '13px';
+
+        li.append(title, info);
+        list.appendChild(li);
+    });
+}
+
+async function addProject() {
+    const title = getElement('projectTitle')?.value.trim();
+    const clientId = getElement('projectClientSelect')?.value;
+    const desc = getElement('projectDesc')?.value.trim();
+    const budget = getElement('projectBudget')?.value.trim();
+    const status = getElement('projectStatus')?.value || 'قيد الانتظار';
+
+    if (!title) {
+        showError('يرجى إدخال اسم المشروع.');
+        return;
+    }
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const newProject = {
+            title,
+            client_id: clientId || null,
+            description: desc || null,
+            budget: budget ? parseFloat(budget) : null,
+            status
+        };
+
+        const { data, error } = await supabaseClient
+            .from('am_projects')
+            .insert([newProject])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localProjects.unshift(data);
+        renderProjects();
+        closeProjectModal();
+
+        getElement('projectTitle').value = '';
+        getElement('projectClientSelect').value = '';
+        getElement('projectDesc').value = '';
+        getElement('projectBudget').value = '';
+
+        await logActivity('ADD_PROJECT', {
+            project_id: data.id,
+            project_title: data.title
+        });
+
+        showMessage('تم حفظ المشروع بنجاح.');
+
+    } catch (error) {
+        console.error('Add project error:', error);
+        showError('لم يتم حفظ المشروع: ' + getErrorMessage(error));
     }
 }
 
@@ -921,8 +1084,10 @@ async function initializeApp() {
 
     localEmployees = [];
     localClients = [];
+    localProjects = [];
     renderEmployees();
     renderClients();
+    renderProjects();
 
     showSection('adminLoginSection');
 
@@ -961,8 +1126,10 @@ async function initializeApp() {
 
         localEmployees = [];
         localClients = [];
+        localProjects = [];
         renderEmployees();
         renderClients();
+        renderProjects();
 
         await supabaseClient.auth.signOut();
 
@@ -998,5 +1165,10 @@ window.renderClients = renderClients;
 window.addClient = addClient;
 window.editClient = editClient;
 window.deleteClient = deleteClient;
+window.openProjectModal = openProjectModal;
+window.closeProjectModal = closeProjectModal;
+window.loadProjects = loadProjects;
+window.renderProjects = renderProjects;
+window.addProject = addProject;
 window.addProduct = addProduct;
 window.renderMarket = renderMarket;
