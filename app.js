@@ -1,7 +1,7 @@
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 3.3 (Auto Session Restoration & Activity Logging)
+   Version: 3.4 (With Client Management Integration)
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -19,6 +19,7 @@ const supabaseClient = window.supabase.createClient(
 
 // 2. APPLICATION STATE
 let localEmployees = [];
+let localClients = [];
 let localProducts = [];
 let isLoading = false;
 
@@ -188,7 +189,9 @@ async function logoutAdmin() {
         if (error) throw error;
 
         localEmployees = [];
+        localClients = [];
         renderEmployees();
+        renderClients();
         showSection('adminLoginSection');
 
         setMessage(
@@ -214,19 +217,25 @@ async function loadDashboardData() {
         if (!isDirector) {
             await supabaseClient.auth.signOut();
             localEmployees = [];
+            localClients = [];
             renderEmployees();
+            renderClients();
             throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
-        const { data, error } = await supabaseClient
+        // Load employees
+        const { data: empData, error: empError } = await supabaseClient
             .from('ai_employees')
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (empError) throw empError;
 
-        localEmployees = Array.isArray(data) ? data : [];
+        localEmployees = Array.isArray(empData) ? empData : [];
         renderEmployees();
+
+        // Load clients
+        await loadClients();
 
         return true;
 
@@ -524,6 +533,153 @@ function testAIEmployee(index) {
     );
 }
 
+// CLIENT MANAGEMENT
+async function loadClients() {
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('am_clients')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        localClients = Array.isArray(data) ? data : [];
+        renderClients();
+        return true;
+
+    } catch (error) {
+        console.error('Load clients error:', error);
+        showError('تعذر تحميل العملاء: ' + getErrorMessage(error));
+        return false;
+    }
+}
+
+function renderClients() {
+    const list = getElement('clientsList');
+    const statEl = getElement('statClients');
+
+    if (statEl) {
+        statEl.textContent = String(localClients.length);
+    }
+
+    if (!list) return;
+
+    list.replaceChildren();
+
+    if (localClients.length === 0) {
+        const empty = document.createElement('li');
+        empty.textContent = 'لا يوجد عملاء مسجلون حالياً.';
+        empty.style.padding = '12px';
+        list.appendChild(empty);
+        return;
+    }
+
+    localClients.forEach(client => {
+        const li = document.createElement('li');
+        li.style.padding = '12px';
+        li.style.borderBottom = '1px solid var(--border-color)';
+
+        const name = document.createElement('strong');
+        name.textContent = client.name || 'عميل بدون اسم';
+
+        const details = document.createElement('p');
+        details.textContent = [
+            client.business_name,
+            client.phone,
+            client.city,
+            client.country
+        ].filter(Boolean).join(' | ');
+
+        details.style.color = 'var(--text-muted)';
+        details.style.fontSize = '13px';
+
+        li.append(name, details);
+        list.appendChild(li);
+    });
+}
+
+async function addClient() {
+    const name = getElement('clientName')?.value.trim();
+    const business = getElement('clientBusiness')?.value.trim();
+    const phone = getElement('clientPhone')?.value.trim();
+    const whatsapp = getElement('clientWhatsapp')?.value.trim();
+    const email = getElement('clientEmail')?.value.trim();
+    const country = getElement('clientCountry')?.value.trim() || 'Nigeria';
+    const city = getElement('clientCity')?.value.trim();
+    const notes = getElement('clientNotes')?.value.trim();
+
+    if (!name) {
+        showError('يرجى إدخال اسم العميل.');
+        return;
+    }
+
+    const emailInput = getElement('clientEmail');
+    if (email && emailInput && !emailInput.checkValidity()) {
+        showError('يرجى إدخال بريد إلكتروني صحيح.');
+        return;
+    }
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const newClient = {
+            name,
+            business_name: business || null,
+            phone: phone || null,
+            whatsapp: whatsapp || null,
+            email: email || null,
+            country,
+            city: city || null,
+            notes: notes || null
+        };
+
+        const { data, error } = await supabaseClient
+            .from('am_clients')
+            .insert([newClient])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localClients.unshift(data);
+        renderClients();
+
+        [
+            'clientName',
+            'clientBusiness',
+            'clientPhone',
+            'clientWhatsapp',
+            'clientEmail',
+            'clientCity',
+            'clientNotes'
+        ].forEach(id => {
+            const element = getElement(id);
+            if (element) element.value = '';
+        });
+
+        if (getElement('clientCountry')) {
+            getElement('clientCountry').value = 'Nigeria';
+        }
+
+        await logActivity('ADD_CLIENT', {
+            client_id: data.id,
+            client_name: data.name
+        });
+
+        showMessage('تم حفظ العميل بنجاح.');
+
+    } catch (error) {
+        console.error('Add client error:', error);
+        showError('لم يتم حفظ العميل: ' + getErrorMessage(error));
+    }
+}
+
 // 16. ADD MARKET PRODUCT
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
@@ -620,13 +776,13 @@ async function initializeApp() {
     initializeMarketSearch();
 
     localEmployees = [];
+    localClients = [];
     renderEmployees();
+    renderClients();
 
-    // عرض شاشة الدخول مؤقتاً أثناء فحص الجلسة
     showSection('adminLoginSection');
 
     try {
-        // استعادة جلسة Supabase المحفوظة
         const { data, error } =
             await supabaseClient.auth.getSession();
 
@@ -634,13 +790,11 @@ async function initializeApp() {
 
         const session = data?.session;
 
-        // لا توجد جلسة محفوظة
         if (!session) {
             showSection('adminLoginSection');
             return;
         }
 
-        // التحقق من صلاحية المدير
         const isDirector = await verifyActiveDirector();
 
         if (!isDirector) {
@@ -655,17 +809,16 @@ async function initializeApp() {
             return;
         }
 
-        // تحميل بيانات لوحة التحكم
         await loadDashboardData();
-
-        // فتح لوحة التحكم
         showSection('dashboardSection');
 
     } catch (error) {
         console.error('Session restoration error:', error);
 
         localEmployees = [];
+        localClients = [];
         renderEmployees();
+        renderClients();
 
         await supabaseClient.auth.signOut();
 
@@ -696,5 +849,8 @@ window.editAIEmployee = editAIEmployee;
 window.changeAIEmployeeStatus = changeAIEmployeeStatus;
 window.deleteAIEmployee = deleteAIEmployee;
 window.testAIEmployee = testAIEmployee;
+window.loadClients = loadClients;
+window.renderClients = renderClients;
+window.addClient = addClient;
 window.addProduct = addProduct;
 window.renderMarket = renderMarket;
