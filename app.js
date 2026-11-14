@@ -1,8 +1,7 @@
-
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 3.0
+   Version: 3.2 (Enhanced Activity Logging with Error Handling)
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -47,7 +46,26 @@ function getErrorMessage(error) {
     return error?.message || 'حدث خطأ غير معروف.';
 }
 
-// 4. VERIFY ACTIVE DIRECTOR
+// 4. ACTIVITY LOGGER (SECURE WITH EXPLICIT ERROR CHECKING)
+async function logActivity(action, details = {}) {
+    try {
+        const { error } = await supabaseClient
+            .from('am_activity_log')
+            .insert([{
+                action: action,
+                details: details,
+                created_at: new Date().toISOString()
+            }]);
+
+        if (error) {
+            console.error('Activity log insertion error:', error.message);
+        }
+    } catch (err) {
+        console.error('Activity log unexpected error:', err);
+    }
+}
+
+// 5. VERIFY ACTIVE DIRECTOR
 async function verifyActiveDirector() {
     const { data: userData, error: userError } =
         await supabaseClient.auth.getUser();
@@ -67,7 +85,7 @@ async function verifyActiveDirector() {
     return data === true;
 }
 
-// 5. NAVIGATION
+// 6. NAVIGATION
 function showSection(sectionId) {
     const sections = [
         'adminLoginSection',
@@ -96,7 +114,7 @@ function switchTab(tabId) {
     if (target) target.classList.remove('hidden');
 }
 
-// 6. ADMIN LOGIN
+// 7. ADMIN LOGIN
 async function loginAdmin() {
     const email = getElement('adminEmail')?.value.trim();
     const password = getElement('adminPassword')?.value;
@@ -140,6 +158,8 @@ async function loginAdmin() {
         await loadDashboardData();
         showSection('dashboardSection');
 
+        await logActivity('ADMIN_LOGIN', { email: email });
+
         setMessage(
             statusMsg,
             'تم تسجيل الدخول بنجاح.',
@@ -159,9 +179,11 @@ async function loginAdmin() {
     }
 }
 
-// 7. ADMIN LOGOUT
+// 8. ADMIN LOGOUT
 async function logoutAdmin() {
     try {
+        await logActivity('ADMIN_LOGOUT', {});
+
         const { error } = await supabaseClient.auth.signOut();
         if (error) throw error;
 
@@ -180,7 +202,7 @@ async function logoutAdmin() {
     }
 }
 
-// 8. LOAD DASHBOARD DATA
+// 9. LOAD DASHBOARD DATA
 async function loadDashboardData() {
     if (isLoading) return;
 
@@ -217,7 +239,7 @@ async function loadDashboardData() {
     }
 }
 
-// 9. ADD AI EMPLOYEE
+// 10. ADD AI EMPLOYEE
 async function addEmployee() {
     const name = getElement('empName')?.value.trim();
     const role = getElement('empRole')?.value.trim();
@@ -252,6 +274,8 @@ async function addEmployee() {
         getElement('empName').value = '';
         getElement('empRole').value = '';
 
+        await logActivity('ADD_EMPLOYEE', { employee_name: name, role: role });
+
         showMessage('تم حفظ الموظف في قاعدة البيانات بنجاح.');
 
     } catch (error) {
@@ -260,7 +284,7 @@ async function addEmployee() {
     }
 }
 
-// 10. EDIT AI EMPLOYEE
+// 11. EDIT AI EMPLOYEE
 async function editAIEmployee(index) {
     const emp = localEmployees[index];
     if (!emp) return;
@@ -307,6 +331,8 @@ async function editAIEmployee(index) {
         localEmployees[index] = data;
         renderEmployees();
 
+        await logActivity('EDIT_EMPLOYEE', { employee_id: emp.id, new_name: cleanName });
+
         showMessage('تم تعديل بيانات الموظف وحفظها بنجاح.');
 
     } catch (error) {
@@ -315,7 +341,7 @@ async function editAIEmployee(index) {
     }
 }
 
-// 11. CHANGE EMPLOYEE STATUS
+// 12. CHANGE EMPLOYEE STATUS
 async function changeAIEmployeeStatus(index) {
     const emp = localEmployees[index];
     if (!emp) return;
@@ -351,6 +377,8 @@ async function changeAIEmployeeStatus(index) {
         localEmployees[index] = data;
         renderEmployees();
 
+        await logActivity('CHANGE_EMPLOYEE_STATUS', { employee_id: emp.id, status: newStatus.trim() });
+
         showMessage('تم تحديث حالة الموظف بنجاح.');
 
     } catch (error) {
@@ -359,7 +387,7 @@ async function changeAIEmployeeStatus(index) {
     }
 }
 
-// 12. DELETE AI EMPLOYEE
+// 13. DELETE AI EMPLOYEE
 async function deleteAIEmployee(index) {
     const emp = localEmployees[index];
     if (!emp) return;
@@ -389,6 +417,9 @@ async function deleteAIEmployee(index) {
         );
 
         renderEmployees();
+
+        await logActivity('DELETE_EMPLOYEE', { employee_id: emp.id, employee_name: emp.name });
+
         showMessage('تم حذف الموظف من قاعدة البيانات.');
 
     } catch (error) {
@@ -397,7 +428,7 @@ async function deleteAIEmployee(index) {
     }
 }
 
-// 13. DISPLAY EMPLOYEES
+// 14. DISPLAY EMPLOYEES
 function renderEmployees() {
     const list = getElement('employeesList');
     const statEl = getElement('statEmployees');
@@ -479,7 +510,7 @@ function renderEmployees() {
     });
 }
 
-// 14. EMPLOYEE DETAILS
+// 15. EMPLOYEE DETAILS
 function testAIEmployee(index) {
     const emp = localEmployees[index];
     if (!emp) return;
@@ -493,7 +524,7 @@ function testAIEmployee(index) {
     );
 }
 
-// 15. ADD MARKET PRODUCT
+// 16. ADD MARKET PRODUCT
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
     const desc = getElement('productDesc')?.value.trim();
@@ -530,7 +561,7 @@ function addProduct() {
     renderMarket();
 }
 
-// 16. DISPLAY APPROVED PRODUCTS
+// 17. DISPLAY APPROVED PRODUCTS
 function renderMarket() {
     const query = (
         getElement('searchMarket')?.value || ''
@@ -574,7 +605,7 @@ function renderMarket() {
     });
 }
 
-// 17. MARKET SEARCH
+// 18. MARKET SEARCH
 function initializeMarketSearch() {
     const search = getElement('searchMarket');
 
@@ -584,7 +615,7 @@ function initializeMarketSearch() {
     }
 }
 
-// 18. INITIALIZE APPLICATION
+// 19. INITIALIZE APPLICATION
 function initializeApp() {
     initializeMarketSearch();
     localEmployees = [];
@@ -598,7 +629,7 @@ if (document.readyState === 'loading') {
     initializeApp();
 }
 
-// 19. EXPOSE FUNCTIONS FOR HTML BUTTONS
+// 20. EXPOSE FUNCTIONS FOR HTML BUTTONS
 window.showSection = showSection;
 window.switchTab = switchTab;
 window.loginAdmin = loginAdmin;
