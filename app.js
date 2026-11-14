@@ -1,7 +1,7 @@
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 3.4 (With Client Management Integration)
+   Version: 3.5 (Complete Client Management with Edit & Delete)
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -578,26 +578,59 @@ function renderClients() {
         return;
     }
 
-    localClients.forEach(client => {
+    localClients.forEach((client, index) => {
         const li = document.createElement('li');
         li.style.padding = '12px';
         li.style.borderBottom = '1px solid var(--border-color)';
+        li.style.display = 'flex';
+        li.style.flexDirection = 'column';
+        li.style.gap = '10px';
+
+        const details = document.createElement('div');
 
         const name = document.createElement('strong');
         name.textContent = client.name || 'عميل بدون اسم';
 
-        const details = document.createElement('p');
-        details.textContent = [
+        const info = document.createElement('p');
+        info.textContent = [
             client.business_name,
             client.phone,
             client.city,
             client.country
         ].filter(Boolean).join(' | ');
 
-        details.style.color = 'var(--text-muted)';
-        details.style.fontSize = '13px';
+        info.style.color = 'var(--text-muted)';
+        info.style.fontSize = '13px';
+        info.style.marginTop = '4px';
 
-        li.append(name, details);
+        details.append(name, info);
+
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.flexWrap = 'wrap';
+        buttons.style.gap = '6px';
+
+        function createActionButton(label, className, action) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.className = className;
+            button.style.padding = '7px 10px';
+            button.style.fontSize = '12px';
+            button.addEventListener('click', action);
+            return button;
+        }
+
+        buttons.append(
+            createActionButton('تعديل', 'secondary', () => {
+                editClient(index);
+            }),
+            createActionButton('حذف', 'secondary', () => {
+                deleteClient(index);
+            })
+        );
+
+        li.append(details, buttons);
         list.appendChild(li);
     });
 }
@@ -677,6 +710,117 @@ async function addClient() {
     } catch (error) {
         console.error('Add client error:', error);
         showError('لم يتم حفظ العميل: ' + getErrorMessage(error));
+    }
+}
+
+// EDIT CLIENT
+async function editClient(index) {
+    const client = localClients[index];
+    if (!client) return;
+
+    const fields = [
+        ['name', 'اسم العميل', client.name],
+        ['business_name', 'النشاط التجاري', client.business_name || ''],
+        ['phone', 'رقم الهاتف', client.phone || ''],
+        ['whatsapp', 'رقم الواتساب', client.whatsapp || ''],
+        ['email', 'البريد الإلكتروني', client.email || ''],
+        ['country', 'الدولة', client.country || 'Nigeria'],
+        ['city', 'المدينة', client.city || ''],
+        ['notes', 'ملاحظات إضافية', client.notes || '']
+    ];
+
+    const updatedClient = {};
+
+    for (const [key, label, currentValue] of fields) {
+        const value = prompt('تعديل ' + label + ':', currentValue);
+        if (value === null) return;
+        updatedClient[key] = value.trim() || null;
+    }
+
+    if (!updatedClient.name) {
+        showError('اسم العميل لا يمكن أن يكون فارغاً.');
+        return;
+    }
+
+    if (updatedClient.email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updatedClient.email)) {
+        showError('يرجى إدخال بريد إلكتروني صحيح.');
+        return;
+    }
+
+    updatedClient.country = updatedClient.country || 'Nigeria';
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('am_clients')
+            .update(updatedClient)
+            .eq('id', client.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        localClients[index] = data;
+        renderClients();
+
+        await logActivity('EDIT_CLIENT', {
+            client_id: client.id,
+            client_name: data.name
+        });
+
+        showMessage('تم تعديل بيانات العميل بنجاح.');
+
+    } catch (error) {
+        console.error('Edit client error:', error);
+        showError('تعذر تعديل العميل: ' + getErrorMessage(error));
+    }
+}
+
+// DELETE CLIENT
+async function deleteClient(index) {
+    const client = localClients[index];
+    if (!client) return;
+
+    const confirmed = confirm(
+        'هل أنت متأكد من حذف العميل "' +
+        (client.name || '') +
+        '" نهائياً؟\n\nلا يمكن التراجع عن الحذف.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة.');
+        }
+
+        const { error } = await supabaseClient
+            .from('am_clients')
+            .delete()
+            .eq('id', client.id);
+
+        if (error) throw error;
+
+        localClients = localClients.filter(
+            item => item.id !== client.id
+        );
+
+        renderClients();
+
+        await logActivity('DELETE_CLIENT', {
+            client_id: client.id,
+            client_name: client.name
+        });
+
+        showMessage('تم حذف العميل بنجاح.');
+
+    } catch (error) {
+        console.error('Delete client error:', error);
+        showError('تعذر حذف العميل: ' + getErrorMessage(error));
     }
 }
 
@@ -852,5 +996,7 @@ window.testAIEmployee = testAIEmployee;
 window.loadClients = loadClients;
 window.renderClients = renderClients;
 window.addClient = addClient;
+window.editClient = editClient;
+window.deleteClient = deleteClient;
 window.addProduct = addProduct;
 window.renderMarket = renderMarket;
