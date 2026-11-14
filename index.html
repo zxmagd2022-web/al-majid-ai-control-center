@@ -283,8 +283,44 @@
         <!-- تبويب العملاء -->
         <div id="clientsTab" class="card tab-content hidden">
             <h2>إدارة العملاء</h2>
-            <p style="color: var(--text-muted);">قائمة العملاء المسجلين وقاعدة البيانات المرتبطة.</p>
-            <div id="clientsList" style="margin-top: 15px;"></div>
+            <div class="form-group">
+                <label>اسم العميل</label>
+                <input type="text" id="clientName" placeholder="اسم العميل أو الجهة">
+            </div>
+            <div class="form-group">
+                <label>النشاط التجاري</label>
+                <input type="text" id="clientBusiness" placeholder="مثال: تجارة إلكترونية، أسر منتجة">
+            </div>
+            <div class="grid" style="margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>رقم الهاتف</label>
+                    <input type="text" id="clientPhone" placeholder="رقم الهاتف">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>رقم الواتساب</label>
+                    <input type="text" id="clientWhatsapp" placeholder="رقم واتساب">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="clientEmail" placeholder="email@domain.com">
+            </div>
+            <div class="grid" style="margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>الدولة</label>
+                    <input type="text" id="clientCountry" placeholder="مثال: نيجيريا">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>المدينة</label>
+                    <input type="text" id="clientCity" placeholder="مثال: لاغوس / أبوجا">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ملاحظات إضافية</label>
+                <textarea id="clientNotes" rows="2" placeholder="ملاحظات حول العميل..."></textarea>
+            </div>
+            <button onclick="addClient()">إضافة عميل جديد</button>
+            <ul id="clientsList" style="margin-top: 15px; list-style: none;"></ul>
         </div>
 
         <!-- تبويب المشاريع -->
