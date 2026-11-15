@@ -809,7 +809,7 @@ async function editClient(index) {
     }
 }
 
-// DELETE CLIENT
+// DELETE CLIENT (محدث مع التحقق الفعلي من قاعدة البيانات)
 async function deleteClient(index) {
     const client = localClients[index];
     if (!client) return;
@@ -827,12 +827,18 @@ async function deleteClient(index) {
             throw new Error('صلاحية المدير النشط مطلوبة.');
         }
 
-        const { error } = await supabaseClient
+        const { data: deletedClient, error } = await supabaseClient
             .from('am_clients')
             .delete()
-            .eq('id', client.id);
+            .eq('id', client.id)
+            .select('id')
+            .maybeSingle();
 
         if (error) throw error;
+
+        if (!deletedClient || deletedClient.id !== client.id) {
+            throw new Error('لم تؤكد قاعدة البيانات حذف العميل. لم يتم تغيير القائمة.');
+        }
 
         localClients = localClients.filter(
             item => item.id !== client.id
