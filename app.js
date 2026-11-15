@@ -1032,8 +1032,9 @@ async function sendMessageToLeila() {
         const response = await fetch(`${supabaseUrl}/functions/v1/leila-chat`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
+                'Authorization': `Bearer ${accessToken}`,
+                'apikey': SUPABASE_KEY,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ message: message })
         });
@@ -1087,13 +1088,13 @@ function clearLeilaChat() {
     if (!historyContainer) return;
 
     historyContainer.replaceChildren();
-    
+
     const welcomeMsg = document.createElement('div');
     welcomeMsg.textContent = 'مرحباً بك أيها المدير، كيف يمكنني مساعدتك اليوم؟';
     welcomeMsg.style.color = 'var(--text-muted)';
     welcomeMsg.style.fontSize = '13px';
     welcomeMsg.style.textAlign = 'center';
-    
+
     historyContainer.appendChild(welcomeMsg);
     setMessage(getElement('leilaChatStatus'), 'تم مسح المحادثة.', 'var(--success)');
 }
