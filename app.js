@@ -1,7 +1,7 @@
 /* =====================================================
    AL MAJID AI CONTROL CENTER
    Main application: app.js
-   Version: 3.6 (Complete Client & Project Management)
+   Version: 3.7 (Complete Client, Project & Leila AI Integration)
    ===================================================== */
 
 // 1. SUPABASE CONNECTION
@@ -987,6 +987,117 @@ async function addProject() {
     }
 }
 
+// ==========================================
+// LEILA AI CHAT INTEGRATION
+// ==========================================
+
+async function sendMessageToLeila() {
+    const inputElement = getElement('leilaMessageInput');
+    const statusElement = getElement('leilaChatStatus');
+    const historyContainer = getElement('leilaChatHistory');
+    const sendBtn = getElement('sendLeilaBtn');
+
+    if (!inputElement || !historyContainer) return;
+
+    const message = inputElement.value.trim();
+    if (!message) {
+        showError('يرجى كتابة رسالة أولاً.');
+        return;
+    }
+
+    try {
+        if (!(await verifyActiveDirector())) {
+            throw new Error('صلاحية المدير النشط مطلوبة لاستخدام هذه الخدمة.');
+        }
+    } catch (err) {
+        showError(err.message);
+        return;
+    }
+
+    if (sendBtn) sendBtn.disabled = true;
+    setMessage(statusElement, 'جارٍ إرسال الرسالة إلى ليلى...', 'var(--primary)');
+
+    appendChatMessage('المدير', message, 'var(--primary)');
+    inputElement.value = '';
+
+    try {
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError || !sessionData?.session) {
+            throw new Error('جلسة تسجيل الدخول غير صالحة. يرجى إعادة تسجيل الدخول.');
+        }
+
+        const accessToken = sessionData.session.access_token;
+        const supabaseUrl = SUPABASE_URL;
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/leila-chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ message: message })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+            throw new Error(result.error || 'تعذر الحصول على رد من ليلى.');
+        }
+
+        appendChatMessage('ليلى (خدمة العملاء)', result.reply, 'var(--success)');
+        setMessage(statusElement, 'تم الرد بنجاح.', 'var(--success)');
+
+        await logActivity('LEILA_CHAT_QUERY', { query_length: message.length });
+
+    } catch (error) {
+        console.error('Leila chat error:', error);
+        showError('خطأ في محادثة ليلى: ' + getErrorMessage(error));
+        setMessage(statusElement, 'فشل إرسال الرسالة.', 'var(--danger)');
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
+    }
+}
+
+function appendChatMessage(sender, text, color) {
+    const historyContainer = getElement('leilaChatHistory');
+    if (!historyContainer) return;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.style.padding = '10px';
+    messageDiv.style.borderRadius = '8px';
+    messageDiv.style.background = sender === 'المدير' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)';
+    messageDiv.style.border = '1px solid var(--border-color)';
+
+    const senderHeader = document.createElement('strong');
+    senderHeader.textContent = sender + ': ';
+    senderHeader.style.color = color;
+
+    const textContent = document.createElement('span');
+    textContent.textContent = text;
+    textContent.style.whiteSpace = 'pre-wrap';
+
+    messageDiv.append(senderHeader, textContent);
+    historyContainer.appendChild(messageDiv);
+
+    historyContainer.scrollTop = historyContainer.scrollHeight;
+}
+
+function clearLeilaChat() {
+    const historyContainer = getElement('leilaChatHistory');
+    if (!historyContainer) return;
+
+    historyContainer.replaceChildren();
+    
+    const welcomeMsg = document.createElement('div');
+    welcomeMsg.textContent = 'مرحباً بك أيها المدير، كيف يمكنني مساعدتك اليوم؟';
+    welcomeMsg.style.color = 'var(--text-muted)';
+    welcomeMsg.style.fontSize = '13px';
+    welcomeMsg.style.textAlign = 'center';
+    
+    historyContainer.appendChild(welcomeMsg);
+    setMessage(getElement('leilaChatStatus'), 'تم مسح المحادثة.', 'var(--success)');
+}
+
 // 16. ADD MARKET PRODUCT
 function addProduct() {
     const title = getElement('productTitle')?.value.trim();
@@ -1170,5 +1281,7 @@ window.closeProjectModal = closeProjectModal;
 window.loadProjects = loadProjects;
 window.renderProjects = renderProjects;
 window.addProject = addProject;
+window.sendMessageToLeila = sendMessageToLeila;
+window.clearLeilaChat = clearLeilaChat;
 window.addProduct = addProduct;
 window.renderMarket = renderMarket;
