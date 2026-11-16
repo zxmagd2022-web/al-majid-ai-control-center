@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const PRODUCTION_ORIGIN = "https://al-majid-ai-control-center.pages.dev";
+const ALLOWED_ORIGINS = [
+  "https://al-majid-ai-control-center.pages.dev",
+  "https://control.almajidmarketing.com",
+];
+
 const MAX_PAYLOAD_BYTES = 16_384; // 16 KB كحد أقصى لحجم الطلب الخام
 const MAX_MESSAGE_CHARS = 2000;
 
@@ -34,7 +38,7 @@ function isAllowedOrigin(origin: string): boolean {
   try {
     const url = new URL(origin);
 
-    if (url.origin === PRODUCTION_ORIGIN) return true;
+    if (ALLOWED_ORIGINS.includes(url.origin)) return true;
 
     // السماح بالتطوير المحلي فقط عبر HTTP
     return (
@@ -376,7 +380,7 @@ serve(async (req) => {
 5. حدود الصلاحيات: يُمنع منعاً باتاً نشر أي إعلانات، أو اعتماد تصاميم، أو تعديل ميزانيات الحملات، أو تقديم خصومات أو التزامات مالية/تعاقدية دون موافقة صريحة ومسبقة من مدير الوكالة.
 6. الأسلوب والهوية: حافظي على نبرة مهنية، مهذبة، واضحة، ومختصرة، وادعمي المدير في تنظيم المهام وصياغة الردود الاحترافية.`;
 
-    // 14. الاتصال الفعلي بـ OpenAI مع مهلة 30 ثانية وتحديد الحد الأقصى للرموز (max_tokens: 800)
+    // 14. الاتصال الفعلي بـ OpenAI مع مهلة 30 ثانية وتحديد الحد الأقص للرموز (max_tokens: 800)
     const openAiResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
