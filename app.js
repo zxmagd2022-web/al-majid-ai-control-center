@@ -1,4 +1,4 @@
-// Supabase Edge Function: bright-endpoint (Final Hardened Production Build)
+// Supabase Edge Function: bright-endpoint (Central Rate Limiting Production Build)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,28 +9,6 @@ const ALLOWED_ORIGINS = [
 
 const MAX_PAYLOAD_BYTES = 16_384; // 16 KB كحد أقصى لحجم الطلب الخام
 const MAX_MESSAGE_CHARS = 2000;
-
-// ملاحظة للإطلاق العام: عداد الذاكرة محلي مؤقت، وسيتطلب لاحقاً عداداً مركزياً في قاعدة البيانات مع تحديث ذري
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const MAX_REQUESTS_PER_WINDOW = 15;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(userId);
-
-  if (!record || now > record.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-
-  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
-    return false;
-  }
-
-  record.count += 1;
-  return true;
-}
 
 function isAllowedOrigin(origin: string): boolean {
   if (!origin) return true; // طلبات غير المتصفح؛ محمية بالمصادقة
@@ -265,15 +243,42 @@ serve(async (req) => {
       );
     }
 
-    // 10. حماية الاستهلاك (Rate Limiting) المؤقتة
-    if (!checkRateLimit(user.id)) {
+    // 10. Central Rate Limiting - PostgreSQL (Fail Closed)
+    const {
+      data: rateLimitAllowed,
+      error: rateLimitError,
+    } = await supabaseClient.rpc(
+      "consume_bright_endpoint_rate_limit"
+    );
+
+    if (rateLimitError) {
+      console.error("Central rate limit verification failed.");
+
       return new Response(
         JSON.stringify({
-          error: "تم تجاوز الحد المسموح للطلبات. يرجى الانتظار دقيقة قبل المحاولة مجدداً.",
+          error: "تعذر التحقق من حماية الطلبات. يرجى المحاولة لاحقاً.",
+        }),
+        {
+          status: 503,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    if (rateLimitAllowed !== true) {
+      return new Response(
+        JSON.stringify({
+          error: "تم تجاوز الحد المسموح للطلبات. يرجى الانتظار دقيقة.",
         }),
         {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
         }
       );
     }
@@ -380,7 +385,7 @@ serve(async (req) => {
 5. حدود الصلاحيات: يُمنع منعاً باتاً نشر أي إعلانات، أو اعتماد تصاميم، أو تعديل ميزانيات الحملات، أو تقديم خصومات أو التزامات مالية/تعاقدية دون موافقة صريحة ومسبقة من مدير الوكالة.
 6. الأسلوب والهوية: حافظي على نبرة مهنية، مهذبة، واضحة، ومختصرة، وادعمي المدير في تنظيم المهام وصياغة الردود الاحترافية.`;
 
-    // 14. الاتصال الفعلي بـ OpenAI مع مهلة 30 ثانية وتحديد الحد الأقص للرموز (max_tokens: 800)
+    // 14. الاتصال الفعلي بـ OpenAI مع مهلة 30 ثانية وتحديد الحد الأقصى للرموز (max_tokens: 800)
     const openAiResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
