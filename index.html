@@ -1,424 +1,150 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مركز التحكم بالذكاء الاصطناعي في الماجد</title>
-    <!-- مكتبة Supabase للاتصال بقاعدة البيانات والمصادقة -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg-dark: #0f172a;
-            --card-bg: #1e293b;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text-light: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
-            --success: #10b981;
-            --danger: #ef4444;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-light);
-            line-height: 1.6;
-            padding: 15px;
-        }
-
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            padding: 25px 15px;
-            background: var(--card-bg);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-
-        header h1 {
-            font-size: 22px;
-            color: var(--primary);
-            margin-bottom: 6px;
-        }
-
-        header p {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 20px;
-        }
-
-        .card h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-        }
-
-        .hidden { display: none !important; }
-        .form-group { margin-bottom: 15px; }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-dark);
-            color: var(--text-light);
-            font-size: 14px;
-        }
-
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-
-        button:hover { background: var(--primary-hover); }
-        button.secondary { background: #475569; }
-        button.secondary:hover { background: #334155; }
-        button.danger { background: var(--danger); }
-
-        .btn-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .nav-tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 15px;
-        }
-
-        .stat-box {
-            background: var(--bg-dark);
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            text-align: center;
-        }
-
-        .stat-box h3 {
-            font-size: 26px;
-            color: var(--primary);
-        }
-
-        .status-msg {
-            margin-top: 12px;
-            font-size: 13px;
-            color: var(--success);
-        }
-
-        @media (max-width: 600px) {
-            .btn-group button, .nav-tabs button {
-                width: 100%;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مركز التحكم الذكي - وكالة الماجد للتسويق</title>
+  <!-- تفعيل Tailwind CSS عبر CDN لضمان عمل التصميم بسلاسة -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased">
 
-<div class="container">
-    <header>
-        <h1>مركز التحكم بالذكاء الاصطناعي في الماجد</h1>
-        <p>إدارة وكالة الماجد للتسويق والذكاء الاصطناعي</p>
+  <!-- شاشة المصادقة (تسجيل الدخول عبر الهاتف ورمز OTP) -->
+  <div id="auth-view" class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-emerald-400">وكالة الماجد للتسويق</h1>
+        <p class="text-sm text-slate-400 mt-1">مركز التحكم الإداري الموحد</p>
+      </div>
+
+      <!-- خطوة إدخال الهاتف -->
+      <div id="phone-step">
+        <form id="phone-auth-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">رقم الهاتف (مع رمز الدولة)</label>
+            <input type="tel" id="phone-input" placeholder="+234..." required
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg transition">
+            إرسال رمز التحقق (SMS OTP)
+          </button>
+        </form>
+      </div>
+
+      <!-- خطوة إدخال رمز التحقق -->
+      <div id="otp-step" style="display: none;" class="space-y-4">
+        <p class="text-xs text-slate-400 text-center">تم إرسال الرمز إلى الرقم: <span id="target-phone-display" class="text-emerald-400 font-mono"></span></p>
+        <form id="otp-verify-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">رمز التحقق المكون من 6 أرقام</label>
+            <input type="text" id="otp-input" maxlength="6" placeholder="123456" required
+              class="w-full text-center tracking-widest font-mono text-xl bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg transition">
+            تأكيد الدخول
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- لوحة التحكم الرئيسية -->
+  <div id="dashboard-view" style="display: none;" class="min-h-screen flex flex-col">
+    <!-- الشريط العلوي -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-4 space-x-reverse">
+        <h2 class="text-lg font-bold text-emerald-400">الماجد للتسويق - مركز التحكم</h2>
+        <nav class="hidden md:flex space-x-2 space-x-reverse text-sm">
+          <button data-target-section="dashboard" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white active-nav">الرئيسية</button>
+          <button data-target-section="clients" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">العملاء والشركات</button>
+          <button data-target-section="marketplace" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">السوق (Marketplace)</button>
+          <button data-target-section="leila" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">مساعدة ليلى الذكية</button>
+        </nav>
+      </div>
+      <div>
+        <button id="logout-btn" class="bg-rose-900/40 border border-rose-700/50 text-rose-300 px-4 py-1.5 rounded-lg text-sm hover:bg-rose-900/60 transition">
+          تسجيل الخروج
+        </button>
+      </div>
     </header>
 
-    <!-- 1. قسم تسجيل دخول الإدارة -->
-    <div id="adminLoginSection" class="card">
-        <h2>تسجيل دخول الإدارة</h2>
-        <div class="form-group">
-            <label>البريد الإلكتروني</label>
-            <input type="email" id="adminEmail" placeholder="أدخل البريد الإلكتروني للمدير">
+    <!-- محتوى الأقسام -->
+    <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+      
+      <!-- قسم الرئيسية -->
+      <section id="section-dashboard" class="control-section space-y-6">
+        <h3 class="text-xl font-bold">نظرة عامة على النظام والعمليات</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <h4 class="text-sm text-slate-400">إجمالي المتاجر والبائعين</h4>
+            <p id="stats-sellers-count" class="text-2xl font-bold mt-2 text-emerald-400">0</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <h4 class="text-sm text-slate-400">المنتجات النشطة</h4>
+            <p id="stats-products-count" class="text-2xl font-bold mt-2 text-emerald-400">0</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl">
+            <h4 class="text-sm text-slate-400">حالة المدير والاتصال</h4>
+            <p id="stats-director-status" class="text-sm font-semibold mt-2 text-amber-400">جاري التحقق...</p>
+          </div>
         </div>
-        <div class="form-group">
-            <label>كلمة المرور</label>
-            <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور">
-        </div>
-        <div class="btn-group">
-            <button onclick="loginAdmin()">تسجيل الدخول</button>
-            <button class="secondary" onclick="showSection('marketSection')">تصفح السوق الإلكتروني</button>
-        </div>
-        <p id="loginStatus" class="status-msg"></p>
-    </div>
+      </section>
 
-    <!-- 2. قسم السوق الإلكتروني -->
-    <div id="marketSection" class="card hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-            <h2 style="border: none; margin: 0;">السوق الإلكتروني</h2>
-            <div class="btn-group">
-                <button class="secondary" onclick="showSection('sellerSection')">بوابة البائعين</button>
-                <button class="secondary" onclick="showSection('adminLoginSection')">دخول الإدارة</button>
-            </div>
+      <!-- قسم العملاء والشركات -->
+      <section id="section-clients" class="control-section space-y-6" style="display: none;">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xl font-bold">إدارة العملاء والشركاء</h3>
+          <button id="add-client-btn" class="bg-emerald-600 px-4 py-2 rounded-lg text-sm hover:bg-emerald-500 transition">إضافة عميل جديد</button>
         </div>
-        <div class="form-group">
-            <input type="text" id="searchMarket" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." onkeyup="renderMarket()">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <table class="w-full text-right text-sm">
+            <thead class="bg-slate-950 border-b border-slate-800 text-slate-400">
+              <tr>
+                <th class="p-4">اسم العميل / الشركة</th>
+                <th class="p-4">رقم الهاتف</th>
+                <th class="p-4">النشاط التجاري</th>
+                <th class="p-4">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body">
+              <tr><td colspan="4" class="p-4 text-center text-slate-500">لا توجد بيانات مسجلة حالياً.</td></tr>
+            </tbody>
+          </table>
         </div>
-        <div id="marketGrid" class="grid">
-            <div class="stat-box">
-                <h4>موظف خدمة عملاء AI</h4>
-                <p style="color: var(--text-muted); font-size: 13px; margin: 8px 0;">رد آلي ذكي على مدار الساعة</p>
-                <strong style="color: var(--success);">متاح للطلب</strong>
-            </div>
-        </div>
-    </div>
+      </section>
 
-    <!-- 3. بوابة البائعين -->
-    <div id="sellerSection" class="card hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-            <h2 style="border: none; margin: 0;">بوابة البائعين - إضافة منتج</h2>
-            <button class="secondary" onclick="showSection('marketSection')">العودة للسوق</button>
+      <!-- قسم السوق (Marketplace) -->
+      <section id="section-marketplace" class="control-section space-y-6" style="display: none;">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xl font-bold">إدارة السوق (AL AL MAJID NIGERIA MARKETPLACE)</h3>
+          <button id="refresh-market-btn" class="bg-slate-800 px-4 py-2 rounded-lg text-sm hover:bg-slate-700 transition">تحديث القائمة</button>
         </div>
-        <div class="form-group">
-            <label>اسم المنتج أو الخدمة</label>
-            <input type="text" id="productTitle" placeholder="مثال: بوت واتساب للرد التلقائي">
+        <div id="marketplace-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- يتم تعبئتها برمجياً بأمان ضد ثغرات XSS -->
         </div>
-        <div class="form-group">
-            <label>وصف المنتج</label>
-            <textarea id="productDesc" rows="3" placeholder="اكتب تفاصيل المنتج..."></textarea>
-        </div>
-        <div class="form-group">
-            <label>السعر</label>
-            <input type="number" id="productPrice" step="0.01" placeholder="0.00">
-        </div>
-        <button onclick="addProduct()">إرسال المنتج للمراجعة</button>
-        <p id="sellerStatus" class="status-msg"></p>
-    </div>
+      </section>
 
-    <!-- 4. لوحة التحكم الرئيسية -->
-    <div id="dashboardSection" class="hidden">
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <span>مرحباً بك في مركز التحكم الآمن</span>
-                <button class="danger" onclick="logoutAdmin()">تسجيل الخروج</button>
+      <!-- قسم ليلى (الذكاء الاصطناعي) -->
+      <section id="section-leila" class="control-section space-y-6" style="display: none;">
+        <h3 class="text-xl font-bold">المساعدة الذكية "ليلى"</h3>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-[600px]">
+          <div id="leila-messages-container" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
+            <div class="chat-msg assistant bg-slate-800 p-3 rounded-lg max-w-xl">
+              أهلاً بك يا مديرنا. أنا "ليلى" جاهزة لمساعدتك في إدارة المهام، صياغة الردود، ومراجعة العمليات وفق سياسات الوكالة. كيف أخدمك اليوم؟
             </div>
+          </div>
+          <form id="leila-chat-form" class="p-4 border-t border-slate-800 flex gap-2">
+            <input type="text" id="leila-chat-input" placeholder="اكتب رسالتك لليلى..." autocomplete="off"
+              class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 text-sm">
+            <button type="submit" class="bg-emerald-600 px-6 py-2 rounded-lg text-sm hover:bg-emerald-500 transition">إرسال</button>
+          </form>
         </div>
+      </section>
 
-        <div class="nav-tabs">
-            <button onclick="switchTab('statsTab')">الإحصائيات</button>
-            <button class="secondary" onclick="switchTab('employeesTab')">الموظفين AI</button>
-            <button class="secondary" onclick="switchTab('clientsTab')">العملاء</button>
-            <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
-            <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
-        </div>
+    </main>
+  </div>
 
-        <!-- تبويب الإحصائيات -->
-        <div id="statsTab" class="card tab-content">
-            <h2>نظرة عامة على الأداء</h2>
-            <div class="grid">
-                <div class="stat-box">
-                    <h3 id="statEmployees">0</h3>
-                    <p>موظفو الذكاء الاصطناعي</p>
-                </div>
-                <div class="stat-box">
-                    <h3 id="statClients">0</h3>
-                    <p>العملاء النشطون</p>
-                </div>
-                <div class="stat-box">
-                    <h3 id="statProjects">0</h3>
-                    <p>المشاريع القائمة</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- تبويب الموظفين -->
-        <div id="employeesTab" class="card tab-content hidden">
-            <h2>إدارة موظفي الذكاء الاصطناعي</h2>
-            <div class="form-group">
-                <label>اسم الموظف الذكي</label>
-                <input type="text" id="empName" placeholder="مثال: مساعد المبيعات الذكي">
-            </div>
-            <div class="form-group">
-                <label>دور الموظف / تعليمات النظام (System Prompt)</label>
-                <input type="text" id="empRole" placeholder="مثال: خدمة عملاء متخصصة">
-            </div>
-            <button onclick="addEmployee()">إضافة موظف AI</button>
-            <ul id="employeesList" style="margin-top: 15px; list-style: none;"></ul>
-        </div>
-
-        <!-- تبويب العملاء -->
-        <div id="clientsTab" class="card tab-content hidden">
-            <h2>إدارة العملاء</h2>
-            <div class="form-group">
-                <label>اسم العميل</label>
-                <input type="text" id="clientName" placeholder="اسم العميل أو الجهة">
-            </div>
-            <div class="form-group">
-                <label>النشاط التجاري</label>
-                <input type="text" id="clientBusiness" placeholder="مثال: تجارة إلكترونية، أسر منتجة">
-            </div>
-            <div class="grid" style="margin-bottom: 15px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>رقم الهاتف</label>
-                    <input type="text" id="clientPhone" placeholder="رقم الهاتف">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>رقم الواتساب</label>
-                    <input type="text" id="clientWhatsapp" placeholder="رقم واتساب">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>البريد الإلكتروني</label>
-                <input type="email" id="clientEmail" placeholder="email@domain.com">
-            </div>
-            <div class="grid" style="margin-bottom: 15px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>الدولة</label>
-                    <input type="text" id="clientCountry" value="Nigeria" placeholder="مثال: نيجيريا">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>الولاية (State)</label>
-                    <select id="clientState">
-                        <option value="">اختر الولاية...</option>
-                        <option value="Abia">Abia</option>
-                        <option value="Adamawa">Adamawa</option>
-                        <option value="Akwa Ibom">Akwa Ibom</option>
-                        <option value="Anambra">Anambra</option>
-                        <option value="Bauchi">Bauchi</option>
-                        <option value="Bayelsa">Bayelsa</option>
-                        <option value="Benue">Benue</option>
-                        <option value="Borno">Borno</option>
-                        <option value="Cross River">Cross River</option>
-                        <option value="Delta">Delta</option>
-                        <option value="Ebonyi">Ebonyi</option>
-                        <option value="Edo">Edo</option>
-                        <option value="Ekiti">Ekiti</option>
-                        <option value="Enugu">Enugu</option>
-                        <option value="Gombe">Gombe</option>
-                        <option value="Imo">Imo</option>
-                        <option value="Jigawa">Jigawa</option>
-                        <option value="Kaduna">Kaduna</option>
-                        <option value="Kano">Kano</option>
-                        <option value="Katsina">Katsina</option>
-                        <option value="Kebbi">Kebbi</option>
-                        <option value="Kogi">Kogi</option>
-                        <option value="Kwara">Kwara</option>
-                        <option value="Lagos">Lagos</option>
-                        <option value="Nasarawa">Nasarawa</option>
-                        <option value="Niger">Niger</option>
-                        <option value="Ogun">Ogun</option>
-                        <option value="Ondo">Ondo</option>
-                        <option value="Osun">Osun</option>
-                        <option value="Oyo">Oyo</option>
-                        <option value="Plateau">Plateau</option>
-                        <option value="Rivers">Rivers</option>
-                        <option value="Sokoto">Sokoto</option>
-                        <option value="Taraba">Taraba</option>
-                        <option value="Yobe">Yobe</option>
-                        <option value="Zamfara">Zamfara</option>
-                        <option value="FCT Abuja">FCT Abuja</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>ملاحظات إضافية</label>
-                <textarea id="clientNotes" rows="2" placeholder="ملاحظات حول العميل..."></textarea>
-            </div>
-            <button onclick="addClient()">إضافة عميل جديد</button>
-            <ul id="clientsList" style="margin-top: 15px; list-style: none;"></ul>
-        </div>
-
-        <!-- تبويب المشاريع -->
-        <div id="projectsTab" class="card tab-content hidden">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
-                <h2 style="border: none; margin: 0;">إدارة المشاريع</h2>
-                <button onclick="openProjectModal()">+ إضافة مشروع جديد</button>
-            </div>
-
-            <!-- نموذج إضافة مشروع -->
-            <div id="projectFormContainer" class="card hidden" style="background: var(--bg-dark); border: 1px dashed var(--primary); margin-bottom: 15px;">
-                <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--primary);">تفاصيل المشروع الجديد</h3>
-                <div class="form-group">
-                    <label>اسم المشروع</label>
-                    <input type="text" id="projectTitle" placeholder="مثال: حملة تسويقية لأسرة منتجة">
-                </div>
-                <div class="form-group">
-                    <label>العميل المرتبط</label>
-                    <select id="projectClientSelect">
-                        <option value="">اختر العميل...</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>وصف المشروع / الخدمات المطلوبة</label>
-                    <textarea id="projectDesc" rows="2" placeholder="تفاصيل المشروع..."></textarea>
-                </div>
-                <div class="grid" style="margin-bottom: 15px;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>الميزانية (NGN)</label>
-                        <input type="number" id="projectBudget" step="0.01" placeholder="0.00">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>حالة المشروع</label>
-                        <select id="projectStatus">
-                            <option value="قيد الانتظار">قيد الانتظار</option>
-                            <option value="قيد التنفيذ">قيد التنفيذ</option>
-                            <option value="مكتمل">مكتمل</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="btn-group">
-                    <button onclick="addProject()">حفظ المشروع</button>
-                    <button class="secondary" onclick="closeProjectModal()">إلغاء</button>
-                </div>
-            </div>
-
-            <div id="projectsList" style="margin-top: 15px;"></div>
-        </div>
-
-        <!-- تبويب المالية -->
-        <div id="financeTab" class="card tab-content hidden">
-            <h2>الإيرادات والمصروفات</h2>
-            <p style="color: var(--text-muted);">السجل المالي وإدارة ميزانية الوكالة.</p>
-            <div id="financeList" style="margin-top: 15px;"></div>
-        </div>
-    </div>
-</div>
-
-<!-- استدعاء ملف البرمجة والمنطق المستقل -->
-<script src="app.js"></script>
+  <!-- ربط السكريبت الرئيسي كـ Module -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
