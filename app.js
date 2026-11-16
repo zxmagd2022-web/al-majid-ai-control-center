@@ -1,4 +1,4 @@
-
+import { createClient } from "@supabase/supabase-js";
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "jsr:@supabase/server@^1";
