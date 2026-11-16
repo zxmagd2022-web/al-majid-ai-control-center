@@ -1,477 +1,374 @@
-// Supabase Edge Function: bright-endpoint (Central Rate Limiting Production Build)
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+/**
+ * AL MAJID MARKETING - Control Center Unified Frontend (app.js)
+ * Secure build with robust DOM mapping, XSS prevention, and clean separation of concerns.
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ALLOWED_ORIGINS = [
-  "https://al-majid-ai-control-center.pages.dev",
-  "https://control.almajidmarketing.com",
-];
+// إعدادات الاتصال بـ Supabase (تأكد من مطابقتها لإعدادات مشروعك)
+const SUPABASE_URL = "https://YOUR_SUPABASE_PROJECT.supabase.co"; 
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; 
 
-const MAX_PAYLOAD_BYTES = 16_384; // 16 KB كحد أقصى لحجم الطلب الخام
-const MAX_MESSAGE_CHARS = 2000;
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-function isAllowedOrigin(origin: string): boolean {
-  if (!origin) return true; // طلبات غير المتصفح؛ محمية بالمصادقة
+const AppState = {
+  currentUser: null,
+  isDirector: false,
+  activeSection: "dashboard"
+};
 
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("AL MAJID Control Center Initialized.");
+  initNavigation();
+  initAuthListeners();
+  initLeilaChat();
+  initActionButtons();
+  
+  await checkSession();
+});
+
+/**
+ * التحقق من الجلسة النشطة
+ */
+async function checkSession() {
   try {
-    const url = new URL(origin);
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
 
-    if (ALLOWED_ORIGINS.includes(url.origin)) return true;
-
-    // السماح بالتطوير المحلي فقط عبر HTTP
-    return (
-      url.protocol === "http:" &&
-      (url.hostname === "localhost" || url.hostname === "127.0.0.1")
-    );
-  } catch {
-    return false;
+    if (session && session.user) {
+      AppState.currentUser = session.user;
+      await verifyDirectorStatus();
+      showDashboardView();
+      await loadDashboardData();
+    } else {
+      showAuthView();
+    }
+  } catch (err) {
+    console.error("Session check error:", err);
+    showAuthView();
   }
 }
 
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin",
-  };
-
-  if (origin && isAllowedOrigin(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  return headers;
-}
-
-// دالة قراءة الجسم تدريجياً لمنع استهلاك الذاكرة بحمولات ضخمة
-async function readLimitedBody(
-  req: Request,
-  maxBytes: number
-): Promise<string | null> {
-  if (!req.body) return null;
-
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
+/**
+ * التحقق من صلاحية المدير النشط عبر RPC
+ */
+async function verifyDirectorStatus() {
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      totalBytes += value.byteLength;
-
-      if (totalBytes > maxBytes) {
-        await reader.cancel();
-        throw new Error("PAYLOAD_TOO_LARGE");
+    const { data, error } = await supabase.rpc("is_active_director");
+    const statusEl = document.getElementById("stats-director-status");
+    
+    if (!error && data === true) {
+      AppState.isDirector = true;
+      if (statusEl) {
+        statusEl.innerText = "مدير نشط ومعتمد ✓";
+        statusEl.className = "text-sm font-semibold mt-2 text-emerald-400";
       }
-
-      chunks.push(value);
+    } else {
+      AppState.isDirector = false;
+      if (statusEl) {
+        statusEl.innerText = "غير مصرح بصلاحية مدير";
+        statusEl.className = "text-sm font-semibold mt-2 text-rose-400";
+      }
     }
-
-    const combined = new Uint8Array(totalBytes);
-    let offset = 0;
-
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-
-    return new TextDecoder("utf-8", { fatal: true }).decode(combined);
-  } catch (error) {
-    if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
-      throw error;
-    }
-
-    throw new Error("INVALID_REQUEST_BODY");
+  } catch (err) {
+    console.error("Director verification error:", err);
+    AppState.isDirector = false;
   }
 }
 
-serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-  const origin = req.headers.get("Origin") || "";
+/**
+ * مصادقة الهاتف ورمز OTP
+ */
+function initAuthListeners() {
+  const phoneForm = document.getElementById("phone-auth-form");
+  const otpForm = document.getElementById("otp-verify-form");
+  const logoutBtn = document.getElementById("logout-btn");
 
-  // 1. حظر النطاقات غير المصرح بها فوراً
-  if (origin && !isAllowedOrigin(origin)) {
-    return new Response(
-      JSON.stringify({ error: "النطاق غير مسموح له." }),
-      {
-        status: 403,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+  if (phoneForm) {
+    phoneForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const phoneInput = document.getElementById("phone-input").value.trim();
+      if (!phoneInput) return;
+
+      try {
+        const { error } = await supabase.auth.signInWithOtp({ phone: phoneInput });
+        if (error) throw error;
+
+        document.getElementById("phone-step").style.display = "none";
+        document.getElementById("otp-step").style.display = "block";
+        document.getElementById("target-phone-display").innerText = phoneInput;
+      } catch (err) {
+        alert("خطأ في إرسال الرمز: " + err.message);
       }
-    );
+    });
   }
 
-  // 2. التعامل مع طلبات CORS Preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (otpForm) {
+    otpForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const phoneInput = document.getElementById("phone-input").value.trim();
+      const otpToken = document.getElementById("otp-input").value.trim();
+      if (!otpToken) return;
+
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          phone: phoneInput,
+          token: otpToken,
+          type: "sms"
+        });
+        if (error) throw error;
+
+        AppState.currentUser = data.user;
+        await verifyDirectorStatus();
+        showDashboardView();
+        await loadDashboardData();
+      } catch (err) {
+        alert("رمز التحقق غير صحيح: " + err.message);
+      }
+    });
   }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      AppState.currentUser = null;
+      AppState.isDirector = false;
+      showAuthView();
+    });
+  }
+}
+
+/**
+ * التنقل بين أقسام الواجهة
+ */
+function initNavigation() {
+  document.querySelectorAll("[data-target-section]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const target = btn.getAttribute("data-target-section");
+      switchSection(target);
+    });
+  });
+}
+
+function switchSection(sectionId) {
+  AppState.activeSection = sectionId;
+  document.querySelectorAll(".control-section").forEach(sec => {
+    sec.style.display = sec.id === `section-${sectionId}` ? "block" : "none";
+  });
+  document.querySelectorAll("[data-target-section]").forEach(btn => {
+    if (btn.getAttribute("data-target-section") === sectionId) {
+      btn.className = "px-3 py-1.5 rounded-lg bg-slate-800 text-white";
+    } else {
+      btn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white";
+    }
+  });
+
+  if (sectionId === "marketplace") {
+    renderMarket();
+  } else if (sectionId === "clients") {
+    loadClients();
+  }
+}
+
+/**
+ * تحميل إحصائيات لوحة التحكم
+ */
+async function loadDashboardData() {
+  try {
+    const { count: sellersCount } = await supabase.from("am_market_sellers").select("*", { count: "exact", head: true });
+    const { count: productsCount } = await supabase.from("am_products").select("*", { count: "exact", head: true });
+
+    document.getElementById("stats-sellers-count").innerText = sellersCount || 0;
+    document.getElementById("stats-products-count").innerText = productsCount || 0;
+  } catch (err) {
+    console.error("Error loading stats:", err);
+  }
+}
+
+/**
+ * ربط أزرار الواجهة وإدارة الأحداث بأمان
+ */
+function initActionButtons() {
+  const addClientBtn = document.getElementById("add-client-btn");
+  if (addClientBtn) {
+    addClientBtn.addEventListener("click", promptAddClient);
+  }
+
+  const refreshMarketBtn = document.getElementById("refresh-market-btn");
+  if (refreshMarketBtn) {
+    refreshMarketBtn.addEventListener("click", renderMarket);
+  }
+}
+
+async function promptAddClient() {
+  const clientName = prompt("أدخل اسم العميل أو الشركة الجديد:");
+  if (!clientName) return;
+  const phone = prompt("أدخل رقم الهاتف:");
+  const businessType = prompt("أدخل النشاط التجاري:");
+  
+  try {
+    // الحفظ في جدول العملاء المستقل am_clients (وليس البائعين)
+    const { error } = await supabase.from("am_clients").insert([
+      { name: clientName, phone, business_type: businessType }
+    ]);
+    if (error) throw error;
+    alert("تمت إضافة العميل بنجاح.");
+    loadClients();
+  } catch (err) {
+    alert("تعذر إضافة العميل: " + err.message);
+  }
+}
+
+async function loadClients() {
+  const tbody = document.getElementById("clients-table-body");
+  if (!tbody) return;
 
   try {
-    // 3. حصر طرق الطلب المسموحة في POST فقط
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ error: "طريقة الطلب غير مسموحة." }),
-        {
-          status: 405,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    const { data, error } = await supabase.from("am_clients").select("*").limit(50);
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500">لا توجد بيانات عملاء مسجلة حالياً.</td></tr>`;
+      return;
     }
 
-    // 4. التحقق الصارم من أن الطلب يرسل JSON (Content-Type)
-    const contentType = req.headers.get("Content-Type") || "";
-    const mimeType = contentType.split(";")[0].trim().toLowerCase();
+    tbody.innerHTML = "";
+    data.forEach(client => {
+      const tr = document.createElement("tr");
+      tr.className = "border-b border-slate-800";
 
-    if (mimeType !== "application/json") {
-      return new Response(
-        JSON.stringify({ error: "يجب إرسال البيانات بصيغة JSON." }),
-        {
-          status: 415,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      const tdName = document.createElement("td");
+      tdName.className = "p-4";
+      tdName.textContent = client.name || "-";
+
+      const tdPhone = document.createElement("td");
+      tdPhone.className = "p-4 font-mono";
+      tdPhone.textContent = client.phone || "-";
+
+      const tdType = document.createElement("td");
+      tdType.className = "p-4";
+      tdType.textContent = client.business_type || "-";
+
+      const tdActions = document.createElement("td");
+      tdActions.className = "p-4 text-slate-400";
+      tdActions.textContent = "نشط";
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdPhone);
+      tr.appendChild(tdType);
+      tr.appendChild(tdActions);
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-rose-400">تعذر تحميل العملاء: ${err.message}</td></tr>`;
+  }
+}
+
+/**
+ * عرض المنتجات في السوق مع الحماية التامة من XSS باستخدام textContent
+ */
+async function renderMarket() {
+  const grid = document.getElementById("marketplace-grid");
+  if (!grid) return;
+  
+  grid.innerHTML = `<p class="text-slate-400 col-span-3 text-center">جاري تحميل المنتجات والبائعين...</p>`;
+
+  try {
+    const { data, error } = await supabase.from("am_products").select("*, am_market_sellers(name)").limit(20);
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      grid.innerHTML = `<p class="text-slate-500 col-span-3 text-center">لا توجد منتجات مسجلة في السوق حالياً.</p>`;
+      return;
     }
 
-    // 5. فحص حجم الطلب المبدئي عبر Content-Length مع التحقق من صحة القيمة
-    const contentLengthHeader = req.headers.get("Content-Length");
+    grid.innerHTML = "";
+    data.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2";
 
-    if (contentLengthHeader !== null) {
-      const contentLength = Number(contentLengthHeader);
+      const titleEl = document.createElement("h4");
+      titleEl.className = "font-bold text-white";
+      titleEl.textContent = p.title || 'منتج بدون عنوان';
 
-      if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
-        return new Response(
-          JSON.stringify({ error: "قيمة حجم الطلب غير صالحة." }),
-          {
-            status: 400,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
+      const sellerEl = document.createElement("p");
+      sellerEl.className = "text-xs text-slate-400";
+      sellerEl.textContent = `البائع: ${p.am_market_sellers?.name || 'غير معروف'}`;
 
-      if (contentLength > MAX_PAYLOAD_BYTES) {
-        return new Response(
-          JSON.stringify({ error: "حجم الطلب يتجاوز الحد المسموح به." }),
-          {
-            status: 413,
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-      }
-    }
+      const priceEl = document.createElement("p");
+      priceEl.className = "text-emerald-400 font-mono text-sm";
+      priceEl.textContent = `${p.price || 0} نيرة`;
 
-    // 6. التحقق من وجود توثيق الجلسة (Authorization Header)
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "مطلوب توثيق الجلسة." }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+      card.appendChild(titleEl);
+      card.appendChild(sellerEl);
+      card.appendChild(priceEl);
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    grid.innerHTML = `<p class="text-rose-400 col-span-3 text-center">تعذر تحميل بيانات السوق: ${err.message}</p>`;
+  }
+}
 
-    // 7. التحقق من إعدادات Supabase البيئية قبل إنشاء العميل
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+/**
+ * تكامل دردشة ليلى الذكية
+ */
+function initLeilaChat() {
+  const form = document.getElementById("leila-chat-form");
+  const input = document.getElementById("leila-chat-input");
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing Supabase configuration.");
+  if (!form) return;
 
-      return new Response(
-        JSON.stringify({ error: "الخدمة غير مهيأة حالياً." }),
-        {
-          status: 500,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
 
-    const supabaseClient = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    appendMsg("user", text);
+    input.value = "";
 
-    // 8. التحقق من صحة المستخدم وجلسة الدخول
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseClient.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "جلسة تسجيل الدخول غير صالحة أو منتهية الصلاحية." }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // 9. التحقق الأمني على مستوى الخادم: هل المستخدم مدير نشط؟
-    const { data: isDirector, error: rpcError } = await supabaseClient.rpc(
-      "is_active_director"
-    );
-
-    if (rpcError || isDirector !== true) {
-      return new Response(
-        JSON.stringify({ error: "غير مسموح لك بالوصول: صلاحية المدير النشط مطلوبة." }),
-        {
-          status: 403,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }
-
-    // 10. Central Rate Limiting - PostgreSQL (Fail Closed)
-    const {
-      data: rateLimitAllowed,
-      error: rateLimitError,
-    } = await supabaseClient.rpc(
-      "consume_bright_endpoint_rate_limit"
-    );
-
-    if (rateLimitError) {
-      console.error("Central rate limit verification failed.");
-
-      return new Response(
-        JSON.stringify({
-          error: "تعذر التحقق من حماية الطلبات. يرجى المحاولة لاحقاً.",
-        }),
-        {
-          status: 503,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }
-
-    if (rateLimitAllowed !== true) {
-      return new Response(
-        JSON.stringify({
-          error: "تم تجاوز الحد المسموح للطلبات. يرجى الانتظار دقيقة.",
-        }),
-        {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    }
-
-    // 11. قراءة نص الطلب تدريجياً بأمان تام مع منع تجاوز الحد المسموح
-    let rawBody: string;
     try {
-      const result = await readLimitedBody(req, MAX_PAYLOAD_BYTES);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (result === null) {
-        return new Response(
-          JSON.stringify({ error: "جسم الطلب مفقود." }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-
-      rawBody = result;
-    } catch (error) {
-      if (error instanceof Error && error.message === "PAYLOAD_TOO_LARGE") {
-        return new Response(
-          JSON.stringify({ error: "حجم الطلب يتجاوز الحد المسموح." }),
-          {
-            status: 413,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: "تعذر قراءة بيانات الطلب." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    let body: unknown;
-    try {
-      body = JSON.parse(rawBody);
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "تنسيق البيانات غير صالح (Invalid JSON)." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const message =
-      typeof body === "object" && body !== null && "message" in body
-        ? (body as Record<string, unknown>).message
-        : undefined;
-
-    if (typeof message !== "string" || message.trim() === "") {
-      return new Response(
-        JSON.stringify({ error: "الرسالة مطلوبة ولا يمكن أن تكون فارغة." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    if (message.length > MAX_MESSAGE_CHARS) {
-      return new Response(
-        JSON.stringify({
-          error: `الرسالة طويلة جداً. الحد الأقصى هو ${MAX_MESSAGE_CHARS} حرف.`,
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // 12. جلب مفتاح وطراز الذكاء الاصطناعي من أسرار الخادم بأمان
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-    const openaiModel = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
-
-    if (!openaiApiKey) {
-      console.error("Configuration Error: Missing OPENAI_API_KEY secret.");
-      return new Response(
-        JSON.stringify({ error: "الخدمة غير مهيأة حالياً." }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // 13. تعليمات النظام لليلى مع تعزيز القواعد
-    const systemPrompt = `أنتِ "ليلى"، مساعدة الذكاء الاصطناعي الرسمية وممثلة خدمة العملاء في "وكالة الماجد للتسويق" (AL MAJID MARKETING) في نيجيريا، المتخصصة في دعم الشركات، التجار، والأسر المنتجة.
-
-يجب عليكِ الالتزام الصارم بالقواعد التالية في جميع ردودك:
-1. اللغات المعتمدة: تتحدثين بطلاقة واحترافية باللغات الثلاث المعتمدة في الوكالة (العربية، الإنجليزية، والهوسا)، وتجيبين بنفس لغة المستخدم ما لم يُطلب منك غير ذلك.
-2. سياسة الدفع المسبق وعدم الاعتماد الفوري للصور: جميع خدمات وحملات الوكالة الإعلانية والتسويقية تخضع سياسة الدفع المسبق بالكامل قبل البدء. يُمنع منعاً باتاً اعتبار صورة إيصال التحويل أو الدفع دليلاً قطعياً على التحصيل المالي حتى يتم التحقق المالي الرسمي واعتماده من الإدارة.
-3. منع اختلاق الأسعار والنتائج: يحظر تماماً اختلاق أي أسعار، أو أرقام مبيعات، أو نتائج حملات، أو تفاصيل مالية غير موجودة رسمياً في سجلات الوكالة أو معتمدة بطلب صريح من المدير.
-4. حماية بيانات العملاء: يُمنع منعاً باتاً مشاركة أو تسريب أي بيانات شخصية، أو أرقام هواتف، أو تفاصيل تجارية خاصة بالعملاء لأي جهة خارجية.
-5. حدود الصلاحيات: يُمنع منعاً باتاً نشر أي إعلانات، أو اعتماد تصاميم، أو تعديل ميزانيات الحملات، أو تقديم خصومات أو التزامات مالية/تعاقدية دون موافقة صريحة ومسبقة من مدير الوكالة.
-6. الأسلوب والهوية: حافظي على نبرة مهنية، مهذبة، واضحة، ومختصرة، وادعمي المدير في تنظيم المهام وصياغة الردود الاحترافية.`;
-
-    // 14. الاتصال الفعلي بـ OpenAI مع مهلة 30 ثانية وتحديد الحد الأقصى للرموز (max_tokens: 800)
-    const openAiResponse = await fetch(
-      "https://api.openai.com/v1/chat/completions",
-      {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/bright-endpoint`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${openaiApiKey}`,
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          model: openaiModel,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message.trim() },
-          ],
-          temperature: 0.7,
-          max_tokens: 800,
-        }),
-        signal: AbortSignal.timeout(30_000),
-      }
-    );
+        body: JSON.stringify({ message: text })
+      });
 
-    if (!openAiResponse.ok) {
-      const requestId = openAiResponse.headers.get("x-request-id") || "unknown";
-      console.error(
-        `OpenAI API Error - Status: ${openAiResponse.status}, Request ID: ${requestId}`
-      );
-      return new Response(
-        JSON.stringify({
-          error: "تعذر معالجة الطلب عبر خدمة الذكاء الاصطناعي حالياً.",
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "خطأ من خدمة ليلى.");
+
+      appendMsg("assistant", result.reply);
+    } catch (err) {
+      appendMsg("assistant", "عذراً، حدث خطأ: " + err.message);
     }
+  });
+}
 
-    const openAiData = await openAiResponse.json();
-    const replyText = openAiData.choices?.[0]?.message?.content;
+function appendMsg(sender, text) {
+  const container = document.getElementById("leila-messages-container");
+  if (!container) return;
+  
+  const div = document.createElement("div");
+  div.className = `chat-msg ${sender} p-3 rounded-lg max-w-xl ${sender === 'user' ? 'bg-emerald-950/40 mr-auto text-white' : 'bg-slate-800 text-slate-200'}`;
+  div.textContent = text; // حماية ضد XSS
+  
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
 
-    // 15. التحقق الصارم من وجود نص حقيقي في الاستجابة
-    if (typeof replyText !== "string" || replyText.trim() === "") {
-      console.error("OpenAI returned an empty or invalid response.");
+function showAuthView() {
+  document.getElementById("auth-view").style.display = "flex";
+  document.getElementById("dashboard-view").style.display = "none";
+}
 
-      return new Response(
-        JSON.stringify({
-          error: "وصل رد غير مكتمل من خدمة الذكاء الاصطناعي. يرجى المحاولة مجدداً.",
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // 16. إرجاع الرد للمدير بنجاح
-    return new Response(
-      JSON.stringify({ reply: replyText.trim() }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      console.error("OpenAI API Request Timeout (30s exceeded).");
-      return new Response(
-        JSON.stringify({
-          error: "انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.",
-        }),
-        {
-          status: 504,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    console.error("Edge Function Internal Error.");
-    return new Response(
-      JSON.stringify({
-        error: "حدث خطأ غير متوقع في الخادم. يرجى المحاولة لاحقاً.",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-});
+function showDashboardView() {
+  document.getElementById("auth-view").style.display = "none";
+  document.getElementById("dashboard-view").style.display = "flex";
+  switchSection("dashboard");
+}
