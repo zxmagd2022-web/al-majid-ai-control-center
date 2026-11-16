@@ -1,6 +1,6 @@
 /**
  * AL MAJID MARKETING - Control Center Unified Frontend (app.js)
- * Secure build with robust DOM mapping, XSS prevention, and clean separation of concerns.
+ * Secure production build with robust DOM mapping, XSS prevention, and clean separation of concerns.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -208,7 +208,6 @@ async function promptAddClient() {
   const businessType = prompt("أدخل النشاط التجاري:");
   
   try {
-    // الحفظ في جدول العملاء المستقل am_clients (وليس البائعين)
     const { error } = await supabase.from("am_clients").insert([
       { name: clientName, phone, business_type: businessType }
     ]);
@@ -356,7 +355,7 @@ function appendMsg(sender, text) {
   
   const div = document.createElement("div");
   div.className = `chat-msg ${sender} p-3 rounded-lg max-w-xl ${sender === 'user' ? 'bg-emerald-950/40 mr-auto text-white' : 'bg-slate-800 text-slate-200'}`;
-  div.textContent = text; // حماية ضد XSS
+  div.textContent = text; // حماية ضد الثغرات
   
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
