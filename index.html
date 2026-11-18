@@ -195,6 +195,49 @@
                 <button class="secondary" onclick="showSection('adminLoginSection')">دخول الإدارة</button>
             </div>
         </div>
+        <div class="card" style="background:var(--bg-dark);margin-bottom:18px;">
+            <h3 style="margin-bottom:10px;">بوابة العميل — الدفع ورفع الإيصال</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">سجّل الدخول بحساب العميل المرتبط لدى الوكالة. لن يظهر إلا المشروع المرتبط بحسابك والمبلغ الذي اعتمدته الإدارة.</p>
+            <div class="grid">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="customerEmail" autocomplete="username" placeholder="بريد العميل">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="customerPassword" autocomplete="current-password" placeholder="كلمة مرور العميل">
+                </div>
+            </div>
+            <div class="btn-group" style="margin-bottom:12px;">
+                <button onclick="customerSignIn()">دخول العميل</button>
+                <button class="secondary" onclick="customerSignOut()">خروج العميل</button>
+            </div>
+            <div class="form-group">
+                <label>مشروع العميل</label>
+                <select id="customerProjectSelect" onchange="document.getElementById('customerPaymentId').value=''">
+                    <option value="">سجّل الدخول أولاً</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>طريقة الدفع</label>
+                <select id="customerPaymentMethod">
+                    <option value="bank_transfer">تحويل بنكي</option>
+                    <option value="gateway">بوابة دفع</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+            <button onclick="requestCustomerPayment()">إنشاء / عرض طلب الدفع</button>
+            <div class="form-group" style="margin-top:12px;">
+                <label>معرف طلب الدفع</label>
+                <input id="customerPaymentId" readonly placeholder="يظهر بعد إنشاء الطلب">
+            </div>
+            <div class="form-group">
+                <label>ملف الإيصال (PDF أو صورة، حتى 10MB)</label>
+                <input id="customerReceiptFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">
+            </div>
+            <button onclick="uploadCustomerReceipt()">رفع الإيصال وربطه بالطلب</button>
+            <p id="customerStatus" class="status-msg" aria-live="polite"></p>
+        </div>
         <div class="form-group">
             <input type="text" id="searchMarket" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." onkeyup="renderMarket()">
         </div>
