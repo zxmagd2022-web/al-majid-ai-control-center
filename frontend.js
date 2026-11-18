@@ -196,6 +196,8 @@
 
       if (error) throw error;
 
+      if (adminChatPoller) window.clearInterval(adminChatPoller);
+      adminChatPoller = null;
       showSection("adminLoginSection");
       showLoginMessage("تم تسجيل الخروج بنجاح.");
 
@@ -789,6 +791,9 @@
     if (text.length > 8000) return setStatus("customerChatStatus", "الرسالة أطول من الحد المسموح.", true);
 
     const mimeType = file ? getChatFileMime(file) : "";
+    if (file && (!CHAT_ALLOWED_MIME_TYPES.has(mimeType) || !file.size || file.size > CHAT_MAX_FILE_SIZE)) {
+      return setStatus("customerChatStatus", "نوع الملف غير مدعوم أو حجمه يتجاوز 50MB.", true);
+    }
     const messageType = file ? chatMediaKind(mimeType) : "text";
     const language = getElement("customerChatLanguage")?.value || "ar";
     const { data: message, error } = await client.from("am_messages").insert({
@@ -801,9 +806,11 @@
     }).select("id").single();
     if (error) return setStatus("customerChatStatus", "تعذر إرسال الرسالة: " + error.message, true);
 
+    let attachmentFailed = false;
     try {
       if (file) await uploadChatAttachment(client, user.id, conversationId, message.id, file);
     } catch (uploadError) {
+      attachmentFailed = true;
       console.error("Customer chat attachment failed:", uploadError);
       setStatus("customerChatStatus", "تم حفظ الرسالة لكن تعذر إرفاق الملف: " + uploadError.message, true);
     }
@@ -815,7 +822,7 @@
     if (voiceButton) voiceButton.textContent = "تسجيل رسالة صوتية";
     await renderChatMessages(client, "customerChatMessages", conversationId);
     if (!file) setStatus("customerChatStatus", "تم إرسال رسالتك وحفظها في سجل المحادثة.");
-    else if (!uploadError) setStatus("customerChatStatus", "تم إرسال الرسالة والمرفق.");
+    else if (!attachmentFailed) setStatus("customerChatStatus", "تم إرسال الرسالة والمرفق.");
   }
 
   async function loadAdminConversations() {
@@ -860,6 +867,9 @@
     if (!text && !file) return setStatus("adminChatStatus", "اكتب الرد أو اختر ملفاً للإرسال.", true);
 
     const mimeType = file ? getChatFileMime(file) : "";
+    if (file && (!CHAT_ALLOWED_MIME_TYPES.has(mimeType) || !file.size || file.size > CHAT_MAX_FILE_SIZE)) {
+      return setStatus("adminChatStatus", "نوع الملف غير مدعوم أو حجمه يتجاوز 50MB.", true);
+    }
     const { data: message, error } = await client.from("am_messages").insert({
       conversation_id: conversationId,
       sender_type: "agency",
@@ -869,9 +879,11 @@
     }).select("id").single();
     if (error) return setStatus("adminChatStatus", "تعذر إرسال الرد: " + error.message, true);
 
+    let attachmentFailed = false;
     try {
       if (file) await uploadChatAttachment(client, userData.user.id, conversationId, message.id, file);
     } catch (uploadError) {
+      attachmentFailed = true;
       console.error("Admin chat attachment failed:", uploadError);
       setStatus("adminChatStatus", "تم حفظ الرد لكن تعذر إرفاق الملف: " + uploadError.message, true);
     }
@@ -880,7 +892,7 @@
     if (fileInput) fileInput.value = "";
     await renderChatMessages(client, "adminChatMessages", conversationId);
     if (!file) setStatus("adminChatStatus", "تم إرسال رد الوكالة.");
-    else setStatus("adminChatStatus", "تم إرسال الرد والمرفق أو حفظ الرد مع تنبيه الملف أعلاه.");
+    else if (!attachmentFailed) setStatus("adminChatStatus", "تم إرسال الرد والمرفق.");
   }
 
   async function toggleCustomerVoiceRecording() {
@@ -1073,6 +1085,7 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       restoreAdminSession();
+      restoreCustomerSession();
     });
   } else {
     restoreAdminSession();
