@@ -427,18 +427,93 @@
     }
   }
 
+  let aiTeamRunInProgress = false;
+
+  async function refreshAiTaskProgress() {
+    const client = initializeSupabase();
+    const { data: tasks, error } = await client
+      .from("am_ai_tasks")
+      .select("title,status,sequence_no,output_data")
+      .order("sequence_no");
+    if (error) throw error;
+
+    const all = tasks || [];
+    const completed = all.filter(t => t.status === "completed").length;
+    const failed = all.filter(t => t.status === "failed").length;
+    const pending = all.filter(t => t.status === "pending").length;
+    const running = all.find(t => t.status === "in_progress");
+
+    const list = getElement("aiTasksList");
+    if (list) list.innerHTML = all.map(t =>
+      '<div style="padding:9px;border-bottom:1px solid var(--border-color)">' +
+      '<strong>' + escapeHtml(t.sequence_no) + ". " + escapeHtml(t.title) + '</strong> · ' +
+      escapeHtml(t.status) +
+      (t.output_data && t.output_data.text ? '<details style="margin-top:6px"><summary>عرض المخرجات</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' +
+        escapeHtml(t.output_data.text) + "</pre></details>" : "") + "</div>"
+    ).join("");
+
+    return { total: all.length, completed, failed, pending, running };
+  }
+
   async function runAiTeam() {
-    const status = getElement("aiRunStatus");
-    if (status) status.textContent = "جارٍ تشغيل الموظفين بالتتابع...";
+    if (aiTeamRunInProgress) return;
+
+    aiTeamRunInProgress = true;
+    const runButton = document.querySelector('button[onclick="runAiTeam()"]');
+    const originalButtonText = runButton ? runButton.textContent : "";
+    if (runButton) {
+      runButton.disabled = true;
+      runButton.textContent = "جارٍ تشغيل الفريق...";
+      runButton.setAttribute("aria-busy", "true");
+    }
+
+    setStatus("aiRunStatus", "بدأ التشغيل بالتتابع. سيتم تحديث تقدم الموظفين تلقائياً...");
+
+    const progressLoop = (async () => {
+      while (aiTeamRunInProgress) {
+        try {
+          const progress = await refreshAiTaskProgress();
+          const current = progress.running
+            ? " · يعمل الآن: " + progress.running.sequence_no + ". " + progress.running.title
+            : "";
+          setStatus(
+            "aiRunStatus",
+            "التقدم: " + progress.completed + "/" + progress.total +
+            " مكتملة · " + progress.failed + " فاشلة · " +
+            progress.pending + " بانتظار التنفيذ" + current
+          );
+        } catch (progressError) {
+          console.warn("AI task progress refresh failed:", progressError);
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 2500));
+      }
+    })();
+
     try {
       const client = initializeSupabase();
       const { data, error } = await client.functions.invoke("run-ai-team", { body: {} });
       if (error) throw error;
-      setStatus("aiRunStatus", "اكتمل: " + (data.completed || 0) + " من " + (data.total_pending_loaded || 0) + " مهمة. راجع المخرجات أدناه.");
-      await loadDashboardData();
+
+      const finalProgress = await refreshAiTaskProgress();
+      setStatus(
+        "انتهى طلب التشغيل: " + (data.completed || 0) + " من " +
+        (data.total_pending_loaded || 0) + " مهمة في هذا الطلب. " +
+        "الحالة الإجمالية: " + finalProgress.completed + "/" +
+        finalProgress.total + " مكتملة، " + finalProgress.failed +
+        " فاشلة، " + finalProgress.pending + " بانتظار التنفيذ."
+      );
     } catch (error) {
       console.error("AI team run failed:", error);
-      setStatus("aiRunStatus", "تعذر التشغيل: تحقق من إعداد OPENAI_API_KEY وصلاحية المدير وسجلات الوظيفة.", true);
+      setStatus("aiRunStatus", "تعذر التشغيل. تحقق من الاتصال وصلاحية المدير وسجلات الوظيفة.", true);
+    } finally {
+      aiTeamRunInProgress = false;
+      await progressLoop;
+      if (runButton) {
+        runButton.disabled = false;
+        runButton.textContent = originalButtonText;
+        runButton.removeAttribute("aria-busy");
+      }
+      await loadDashboardData();
     }
   }
 
