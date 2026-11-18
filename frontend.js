@@ -157,6 +157,7 @@
         );
       }
 
+      // التحقق من صلاحية المدير قبل السماح بالدخول للوحة التحكم
       try {
         await verifyActiveDirector(client);
       } catch (verificationError) {
@@ -228,6 +229,7 @@
         return;
       }
 
+      // التحقق من صلاحية المدير للمستخدم المستعاد جلسته قبل عرض لوحة التحكم
       try {
         await verifyActiveDirector(client);
       } catch (verificationError) {
@@ -331,8 +333,13 @@
   window.openProjectModal = openProjectModal;
   window.closeProjectModal = closeProjectModal;
 
-  document.addEventListener("DOMContentLoaded", () => {
+  // التحقق من حالة تحميل الصفحة لضمان عمل استعادة الجلسة بكفاءة
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      restoreAdminSession();
+    });
+  } else {
     restoreAdminSession();
-  });
+  }
 
 })();
