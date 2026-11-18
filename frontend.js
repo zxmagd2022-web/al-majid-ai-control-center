@@ -196,6 +196,8 @@
 
       if (error) throw error;
 
+      if (adminChatPoller) window.clearInterval(adminChatPoller);
+      adminChatPoller = null;
       showSection("adminLoginSection");
       showLoginMessage("تم تسجيل الخروج بنجاح.");
 
@@ -274,7 +276,8 @@
       "employeesTab",
       "clientsTab",
       "projectsTab",
-      "financeTab"
+      "financeTab",
+      "chatTab"
     ];
 
     if (!allowedTabs.includes(tabId)) return;
@@ -285,6 +288,10 @@
 
     const selectedTab = getElement(tabId);
     if (selectedTab) selectedTab.classList.remove("hidden");
+    if (tabId === "chatTab") {
+      loadAdminConversations();
+      startAdminChatPolling();
+    }
   }
 
   function renderMarket() {
@@ -316,6 +323,11 @@
 
 
   let customerClient = null;
+  let customerChatPoller = null;
+  let adminChatPoller = null;
+  let customerRecorder = null;
+  let customerRecordingChunks = [];
+  let recordedCustomerAudioFile = null;
 
   function initializeCustomerClient() {
     if (customerClient) return customerClient;
@@ -591,6 +603,362 @@
     await loadPayments();
   }
 
+  const CHAT_BUCKET = "am-client-chat-media";
+  const CHAT_MAX_FILE_SIZE = 50 * 1024 * 1024;
+  const CHAT_ALLOWED_MIME_TYPES = new Set([
+    "image/jpeg", "image/png", "image/webp", "image/gif",
+    "video/mp4", "video/webm", "video/quicktime",
+    "audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav", "audio/x-m4a",
+    "application/pdf"
+  ]);
+
+  function chatMediaKind(mimeType) {
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    return "file";
+  }
+
+  function getChatFileMime(file) {
+    return String(file?.type || "").split(";")[0].trim().toLowerCase();
+  }
+
+  async function uploadChatAttachment(client, userId, conversationId, messageId, file) {
+    const mimeType = getChatFileMime(file);
+    if (!CHAT_ALLOWED_MIME_TYPES.has(mimeType)) {
+      throw new Error("نوع الملف غير مدعوم. اختر صورة أو فيديو أو صوتاً أو PDF.");
+    }
+    if (!file.size || file.size > CHAT_MAX_FILE_SIZE) {
+      throw new Error("حجم الملف يجب ألا يتجاوز 50MB.");
+    }
+
+    const safeName = String(file.name || "attachment")
+      .normalize("NFKD")
+      .replace(/[^A-Za-z0-9._-]/g, "_")
+      .replace(/\.\.+/g, ".")
+      .slice(0, 100) || "attachment";
+    const storagePath = userId + "/" + conversationId + "/" + messageId + "-" + safeName;
+    const { error: uploadError } = await client.storage.from(CHAT_BUCKET).upload(storagePath, file, {
+      contentType: mimeType,
+      upsert: false
+    });
+    if (uploadError) throw uploadError;
+
+    const { error: rowError } = await client.from("am_message_attachments").insert({
+      message_id: messageId,
+      conversation_id: conversationId,
+      storage_path: storagePath,
+      file_name: safeName,
+      mime_type: mimeType,
+      file_size: file.size,
+      media_kind: chatMediaKind(mimeType),
+      uploaded_by: userId
+    });
+    if (rowError) throw rowError;
+  }
+
+  async function renderChatMessages(client, containerId, conversationId) {
+    const container = getElement(containerId);
+    if (!container) return;
+    if (!conversationId) {
+      container.innerHTML = '<div class="chat-empty">اختر محادثة لعرض الرسائل.</div>';
+      return;
+    }
+
+    const { data: messages, error } = await client
+      .from("am_messages")
+      .select("id,sender_type,content,message_type,language,created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (error) {
+      container.textContent = "تعذر تحميل الرسائل: " + error.message;
+      return;
+    }
+    if (!messages?.length) {
+      container.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد. ابدأ المحادثة برسالة جديدة.</div>';
+      return;
+    }
+
+    const { data: attachments, error: attachmentError } = await client
+      .from("am_message_attachments")
+      .select("message_id,storage_path,file_name,mime_type,media_kind")
+      .eq("conversation_id", conversationId);
+    if (attachmentError) console.warn("Chat attachments load failed:", attachmentError);
+
+    const attachmentMap = new Map();
+    for (const item of attachments || []) {
+      if (!attachmentMap.has(item.message_id)) attachmentMap.set(item.message_id, []);
+      attachmentMap.get(item.message_id).push(item);
+    }
+
+    const rendered = [];
+    for (const message of messages) {
+      const senderLabel = ({
+        customer: "العميل",
+        agency: "وكالة الماجد",
+        ai: "مساعد الماجد AI",
+        human: "موظف الوكالة",
+        system: "النظام"
+      })[message.sender_type] || "رسالة";
+      const files = [];
+      for (const attachment of attachmentMap.get(message.id) || []) {
+        const { data: signed, error: signedError } = await client.storage
+          .from(CHAT_BUCKET).createSignedUrl(attachment.storage_path, 120);
+        if (signedError || !signed?.signedUrl) continue;
+        const url = escapeHtml(signed.signedUrl);
+        const name = escapeHtml(attachment.file_name);
+        if (attachment.media_kind === "image") {
+          files.push('<a href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" alt="' + name + '"></a>');
+        } else if (attachment.media_kind === "video") {
+          files.push('<video controls preload="metadata" src="' + url + '"></video>');
+        } else if (attachment.media_kind === "audio") {
+          files.push('<audio controls preload="metadata" src="' + url + '"></audio>');
+        } else {
+          files.push('<a href="' + url + '" target="_blank" rel="noopener">' + name + '</a>');
+        }
+      }
+      const dateLabel = new Date(message.created_at).toLocaleString();
+      rendered.push(
+        '<article class="chat-message chat-' + escapeHtml(message.sender_type) + '">' +
+        '<strong>' + senderLabel + '</strong>' +
+        (message.content ? '<div style="white-space:pre-wrap;margin-top:5px">' + escapeHtml(message.content) + '</div>' : '') +
+        files.join("") +
+        '<small>' + escapeHtml(dateLabel) + (message.language ? " · " + escapeHtml(message.language) : "") + '</small>' +
+        '</article>'
+      );
+    }
+    container.innerHTML = rendered.join("");
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async function loadCustomerConversations() {
+    const client = initializeCustomerClient();
+    const { data: conversations, error } = await client
+      .from("am_conversations")
+      .select("id,subject,status,preferred_language,created_at")
+      .order("created_at", { ascending: false });
+    if (error) return setStatus("customerChatStatus", "تعذر تحميل المحادثات: " + error.message, true);
+
+    const select = getElement("customerConversationSelect");
+    if (!select) return;
+    const previous = select.value;
+    select.innerHTML = (conversations || []).map(c =>
+      '<option value="' + escapeHtml(c.id) + '">' +
+      escapeHtml(c.subject || "محادثة") + " · " + escapeHtml(c.status) +
+      " · " + escapeHtml(new Date(c.created_at).toLocaleDateString()) + "</option>"
+    ).join("") || '<option value="">لا توجد محادثات بعد</option>';
+
+    const selectedId = (conversations || []).some(c => c.id === previous) ? previous : conversations?.[0]?.id;
+    if (selectedId) select.value = selectedId;
+    await renderChatMessages(client, "customerChatMessages", selectedId || "");
+  }
+
+  async function startCustomerConversation() {
+    const projectId = getElement("customerProjectSelect")?.value;
+    const language = getElement("customerChatLanguage")?.value || "ar";
+    if (!projectId) return setStatus("customerChatStatus", "اختر مشروعك أولاً لربط المحادثة به.", true);
+    const { data, error } = await initializeCustomerClient().rpc("customer_start_conversation", {
+      p_project_id: projectId,
+      p_language: language
+    });
+    if (error) return setStatus("customerChatStatus", "تعذر بدء المحادثة: " + error.message, true);
+    await loadCustomerConversations();
+    const select = getElement("customerConversationSelect");
+    if (select && data) {
+      select.value = data;
+      await loadCustomerConversationMessages();
+    }
+    setStatus("customerChatStatus", "تم فتح محادثة جديدة مرتبطة بمشروعك.");
+  }
+
+  async function loadCustomerConversationMessages() {
+    const conversationId = getElement("customerConversationSelect")?.value;
+    await renderChatMessages(initializeCustomerClient(), "customerChatMessages", conversationId || "");
+  }
+
+  async function sendCustomerChatMessage() {
+    const client = initializeCustomerClient();
+    const { data: sessionData } = await client.auth.getSession();
+    const user = sessionData?.session?.user;
+    const conversationId = getElement("customerConversationSelect")?.value;
+    const text = getElement("customerChatText")?.value.trim() || "";
+    const fileInput = getElement("customerChatFile");
+    const file = recordedCustomerAudioFile || fileInput?.files?.[0];
+    if (!user) return setStatus("customerChatStatus", "سجّل الدخول أولاً.", true);
+    if (!conversationId) return setStatus("customerChatStatus", "ابدأ محادثة جديدة أولاً.", true);
+    if (!text && !file) return setStatus("customerChatStatus", "اكتب رسالة أو اختر ملفاً للإرسال.", true);
+    if (text.length > 8000) return setStatus("customerChatStatus", "الرسالة أطول من الحد المسموح.", true);
+
+    const mimeType = file ? getChatFileMime(file) : "";
+    if (file && (!CHAT_ALLOWED_MIME_TYPES.has(mimeType) || !file.size || file.size > CHAT_MAX_FILE_SIZE)) {
+      return setStatus("customerChatStatus", "نوع الملف غير مدعوم أو حجمه يتجاوز 50MB.", true);
+    }
+    const messageType = file ? chatMediaKind(mimeType) : "text";
+    const language = getElement("customerChatLanguage")?.value || "ar";
+    const { data: message, error } = await client.from("am_messages").insert({
+      conversation_id: conversationId,
+      sender_type: "customer",
+      sender_id: user.id,
+      content: text || (file ? "مرفق: " + file.name : ""),
+      message_type: messageType,
+      language
+    }).select("id").single();
+    if (error) return setStatus("customerChatStatus", "تعذر إرسال الرسالة: " + error.message, true);
+
+    let attachmentFailed = false;
+    try {
+      if (file) await uploadChatAttachment(client, user.id, conversationId, message.id, file);
+    } catch (uploadError) {
+      attachmentFailed = true;
+      console.error("Customer chat attachment failed:", uploadError);
+      setStatus("customerChatStatus", "تم حفظ الرسالة لكن تعذر إرفاق الملف: " + uploadError.message, true);
+    }
+
+    getElement("customerChatText").value = "";
+    if (fileInput) fileInput.value = "";
+    recordedCustomerAudioFile = null;
+    const voiceButton = getElement("customerVoiceButton");
+    if (voiceButton) voiceButton.textContent = "تسجيل رسالة صوتية";
+    await renderChatMessages(client, "customerChatMessages", conversationId);
+    if (!file) setStatus("customerChatStatus", "تم إرسال رسالتك وحفظها في سجل المحادثة.");
+    else if (!attachmentFailed) setStatus("customerChatStatus", "تم إرسال الرسالة والمرفق.");
+  }
+
+  async function loadAdminConversations() {
+    const client = initializeSupabase();
+    const { data: conversations, error } = await client
+      .from("am_conversations")
+      .select("id,client_id,subject,status,preferred_language,created_at")
+      .order("created_at", { ascending: false });
+    if (error) return setStatus("adminChatStatus", "تعذر تحميل المحادثات: " + error.message, true);
+
+    const { data: clients, error: clientsError } = await client
+      .from("am_clients").select("id,name,business_name");
+    if (clientsError) console.warn("Chat client names load failed:", clientsError);
+    const clientMap = new Map((clients || []).map(c => [c.id, c]));
+    const select = getElement("adminChatConversationSelect");
+    if (!select) return;
+    const previous = select.value;
+    select.innerHTML = (conversations || []).map(c => {
+      const owner = clientMap.get(c.client_id);
+      const label = (owner?.name || "عميل") + " — " + (c.subject || "محادثة") + " · " + c.status;
+      return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(label) + "</option>";
+    }).join("") || '<option value="">لا توجد محادثات بعد</option>';
+    const selectedId = (conversations || []).some(c => c.id === previous) ? previous : conversations?.[0]?.id;
+    if (selectedId) select.value = selectedId;
+    await renderChatMessages(client, "adminChatMessages", selectedId || "");
+  }
+
+  async function loadAdminConversationMessages() {
+    const conversationId = getElement("adminChatConversationSelect")?.value;
+    await renderChatMessages(initializeSupabase(), "adminChatMessages", conversationId || "");
+  }
+
+  async function sendAdminChatMessage() {
+    const client = initializeSupabase();
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError || !userData?.user) return setStatus("adminChatStatus", "انتهت جلسة المدير. سجّل الدخول مجدداً.", true);
+    const conversationId = getElement("adminChatConversationSelect")?.value;
+    const text = getElement("adminChatText")?.value.trim() || "";
+    const fileInput = getElement("adminChatFile");
+    const file = fileInput?.files?.[0];
+    if (!conversationId) return setStatus("adminChatStatus", "اختر محادثة أولاً.", true);
+    if (!text && !file) return setStatus("adminChatStatus", "اكتب الرد أو اختر ملفاً للإرسال.", true);
+
+    const mimeType = file ? getChatFileMime(file) : "";
+    if (file && (!CHAT_ALLOWED_MIME_TYPES.has(mimeType) || !file.size || file.size > CHAT_MAX_FILE_SIZE)) {
+      return setStatus("adminChatStatus", "نوع الملف غير مدعوم أو حجمه يتجاوز 50MB.", true);
+    }
+    const { data: message, error } = await client.from("am_messages").insert({
+      conversation_id: conversationId,
+      sender_type: "agency",
+      sender_id: userData.user.id,
+      content: text || (file ? "مرفق من وكالة الماجد: " + file.name : ""),
+      message_type: file ? chatMediaKind(mimeType) : "text"
+    }).select("id").single();
+    if (error) return setStatus("adminChatStatus", "تعذر إرسال الرد: " + error.message, true);
+
+    let attachmentFailed = false;
+    try {
+      if (file) await uploadChatAttachment(client, userData.user.id, conversationId, message.id, file);
+    } catch (uploadError) {
+      attachmentFailed = true;
+      console.error("Admin chat attachment failed:", uploadError);
+      setStatus("adminChatStatus", "تم حفظ الرد لكن تعذر إرفاق الملف: " + uploadError.message, true);
+    }
+
+    getElement("adminChatText").value = "";
+    if (fileInput) fileInput.value = "";
+    await renderChatMessages(client, "adminChatMessages", conversationId);
+    if (!file) setStatus("adminChatStatus", "تم إرسال رد الوكالة.");
+    else if (!attachmentFailed) setStatus("adminChatStatus", "تم إرسال الرد والمرفق.");
+  }
+
+  async function toggleCustomerVoiceRecording() {
+    const button = getElement("customerVoiceButton");
+    if (customerRecorder && customerRecorder.state === "recording") {
+      customerRecorder.stop();
+      if (button) button.textContent = "جارٍ إنهاء التسجيل...";
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      return setStatus("customerChatStatus", "تسجيل الصوت غير مدعوم في هذا المتصفح. يمكنك اختيار ملف صوتي من جهازك.", true);
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      customerRecordingChunks = [];
+      customerRecorder = new MediaRecorder(stream);
+      customerRecorder.ondataavailable = event => {
+        if (event.data?.size) customerRecordingChunks.push(event.data);
+      };
+      customerRecorder.onstop = () => {
+        const mimeType = getChatFileMime({ type: customerRecorder.mimeType || "audio/webm" }) || "audio/webm";
+        const blob = new Blob(customerRecordingChunks, { type: mimeType });
+        recordedCustomerAudioFile = new File([blob], "customer-voice-message.webm", { type: mimeType });
+        stream.getTracks().forEach(track => track.stop());
+        if (button) button.textContent = "تسجيل رسالة صوتية";
+        setStatus("customerChatStatus", "تم تسجيل الرسالة الصوتية. اضغط إرسال الرسالة لإرسالها.");
+      };
+      customerRecorder.start();
+      if (button) button.textContent = "إيقاف التسجيل";
+      setStatus("customerChatStatus", "التسجيل جارٍ... اضغط إيقاف التسجيل عند الانتهاء.");
+    } catch (error) {
+      setStatus("customerChatStatus", "تعذر الوصول إلى الميكروفون: " + error.message, true);
+    }
+  }
+
+  function startCustomerChatPolling() {
+    if (customerChatPoller) window.clearInterval(customerChatPoller);
+    customerChatPoller = window.setInterval(() => {
+      loadCustomerConversations().catch(error => console.warn("Customer chat refresh failed:", error));
+    }, 8000);
+  }
+
+  function startAdminChatPolling() {
+    if (adminChatPoller) return;
+    adminChatPoller = window.setInterval(() => {
+      if (!getElement("chatTab")?.classList.contains("hidden")) {
+        loadAdminConversations().catch(error => console.warn("Admin chat refresh failed:", error));
+      }
+    }, 8000);
+  }
+
+  async function restoreCustomerSession() {
+    try {
+      const client = initializeCustomerClient();
+      const { data, error } = await client.auth.getSession();
+      if (error || !data?.session) return;
+      const panel = getElement("customerChatPanel");
+      if (panel) panel.classList.remove("hidden");
+      await loadCustomerProjects();
+      await loadCustomerConversations();
+      startCustomerChatPolling();
+    } catch (error) {
+      console.warn("Customer session restoration failed:", error);
+    }
+  }
+
   async function customerSignIn() {
     const email = getElement("customerEmail")?.value.trim();
     const password = getElement("customerPassword")?.value;
@@ -598,7 +966,11 @@
     const { error } = await initializeCustomerClient().auth.signInWithPassword({ email, password });
     if (error) return setStatus("customerStatus", "تعذر تسجيل الدخول: " + error.message, true);
     setStatus("customerStatus", "تم تسجيل دخول العميل.");
+    const panel = getElement("customerChatPanel");
+    if (panel) panel.classList.remove("hidden");
     await loadCustomerProjects();
+    await loadCustomerConversations();
+    startCustomerChatPolling();
   }
 
   async function loadCustomerProjects() {
@@ -657,6 +1029,12 @@
 
   async function customerSignOut() {
     const { error } = await initializeCustomerClient().auth.signOut();
+    if (customerChatPoller) window.clearInterval(customerChatPoller);
+    customerChatPoller = null;
+    const panel = getElement("customerChatPanel");
+    if (panel) panel.classList.add("hidden");
+    const messages = getElement("customerChatMessages");
+    if (messages) messages.innerHTML = '<div class="chat-empty">سجّل الدخول لعرض محادثاتك.</div>';
     setStatus("customerStatus", error ? "تعذر تسجيل الخروج." : "تم تسجيل خروج العميل.", !!error);
   }
 
@@ -684,6 +1062,14 @@
   window.requestCustomerPayment = requestCustomerPayment;
   window.uploadCustomerReceipt = uploadCustomerReceipt;
   window.customerSignOut = customerSignOut;
+  window.loadCustomerConversations = loadCustomerConversations;
+  window.startCustomerConversation = startCustomerConversation;
+  window.loadCustomerConversationMessages = loadCustomerConversationMessages;
+  window.sendCustomerChatMessage = sendCustomerChatMessage;
+  window.toggleCustomerVoiceRecording = toggleCustomerVoiceRecording;
+  window.loadAdminConversations = loadAdminConversations;
+  window.loadAdminConversationMessages = loadAdminConversationMessages;
+  window.sendAdminChatMessage = sendAdminChatMessage;
   window.logoutAdmin = logoutAdmin;
   window.showSection = showSection;
   window.switchTab = switchTab;
@@ -699,9 +1085,11 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       restoreAdminSession();
+      restoreCustomerSession();
     });
   } else {
     restoreAdminSession();
+    restoreCustomerSession();
   }
 
 })();

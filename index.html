@@ -153,6 +153,28 @@
             color: var(--success);
         }
 
+        .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+        .chat-messages {
+            min-height: 220px; max-height: 420px; overflow-y: auto;
+            padding: 12px; border: 1px solid var(--border-color);
+            border-radius: 10px; background: var(--bg-dark);
+        }
+        .chat-message {
+            max-width: 92%; margin: 8px 0; padding: 10px 12px;
+            border-radius: 10px; overflow-wrap: anywhere;
+            border: 1px solid var(--border-color); background: var(--card-bg);
+        }
+        .chat-message.chat-customer { margin-right: auto; border-color: #2563eb; }
+        .chat-message.chat-agency, .chat-message.chat-ai, .chat-message.chat-human {
+            margin-left: auto; border-color: #059669;
+        }
+        .chat-message small { display:block; color:var(--text-muted); margin-top:6px; }
+        .chat-message img, .chat-message video { display:block; max-width:100%; max-height:260px; border-radius:8px; margin-top:8px; }
+        .chat-message audio { display:block; width:100%; margin-top:8px; }
+        .chat-empty { color:var(--text-muted); text-align:center; padding:24px 8px; }
+        .chat-compose { display:grid; gap:10px; margin-top:12px; }
+        .chat-compose textarea { min-height:80px; resize:vertical; }
+
         @media (max-width: 600px) {
             .btn-group button, .nav-tabs button {
                 width: 100%;
@@ -246,6 +268,45 @@
             </div>
             <button onclick="uploadCustomerReceipt()">رفع الإيصال وربطه بالطلب</button>
             <p id="customerStatus" class="status-msg" aria-live="polite"></p>
+
+            <section id="customerChatPanel" class="card hidden" style="background:var(--card-bg);margin-top:16px;">
+                <h3 style="margin-bottom:8px;">محادثة الماجد — خدمة العملاء</h3>
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">اكتب رسالتك أو أرفق صورة أو فيديو أو رسالة صوتية. الحد الأقصى للملف 50MB.</p>
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="customerChatLanguage">لغة المحادثة</label>
+                        <select id="customerChatLanguage">
+                            <option value="ar">العربية</option>
+                            <option value="en">English</option>
+                            <option value="ha">Hausa</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerConversationSelect">المحادثات السابقة</label>
+                        <select id="customerConversationSelect" onchange="loadCustomerConversationMessages()">
+                            <option value="">لا توجد محادثات بعد</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-bottom:12px;">
+                    <button onclick="startCustomerConversation()">بدء محادثة جديدة للمشروع المحدد</button>
+                    <button class="secondary" onclick="loadCustomerConversations()">تحديث المحادثات</button>
+                </div>
+                <div id="customerChatMessages" class="chat-messages" aria-live="polite">
+                    <div class="chat-empty">سجّل الدخول واختر مشروعاً لبدء المحادثة.</div>
+                </div>
+                <div class="chat-compose">
+                    <textarea id="customerChatText" maxlength="8000" placeholder="اكتب رسالتك إلى فريق الماجد..."></textarea>
+                    <label for="customerChatFile">إرفاق صورة أو فيديو أو صوت أو PDF</label>
+                    <input id="customerChatFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a,application/pdf">
+                    <div class="btn-group">
+                        <button type="button" class="secondary" id="customerVoiceButton" onclick="toggleCustomerVoiceRecording()">تسجيل رسالة صوتية</button>
+                        <button type="button" onclick="sendCustomerChatMessage()">إرسال الرسالة</button>
+                    </div>
+                </div>
+                <p id="customerChatStatus" class="status-msg" aria-live="polite"></p>
+                <p style="color:var(--text-muted);font-size:12px;margin-top:8px;">تنبيه: حفظ الرسائل والملفات متاح في هذه المرحلة. تفريغ الصوت وتحليل الصور والفيديو والرد الصوتي بالذكاء الاصطناعي سيتم ربطه في مرحلة المعالجة التالية.</p>
+            </section>
         </div>
         <div class="form-group">
             <input type="text" id="searchMarket" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." onkeyup="renderMarket()">
@@ -296,6 +357,7 @@
             <button class="secondary" onclick="switchTab('clientsTab')">العملاء</button>
             <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
             <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
+            <button class="secondary" onclick="switchTab('chatTab')">محادثات العملاء</button>
         </div>
 
         <!-- تبويب الإحصائيات -->
@@ -481,6 +543,31 @@
 
             <p style="color:var(--text-muted);font-size:13px;margin-bottom:10px;">تحديد المبلغ المعتمد هنا يتيح للعميل إنشاء طلب دفع بهذا المبلغ من خلال بوابة العميل.</p>
             <div id="projectsList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- تبويب محادثات العملاء -->
+        <div id="chatTab" class="card tab-content hidden">
+            <h2>محادثات العملاء</h2>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">هذه اللوحة للمدير النشط فقط. يمكن متابعة الرسائل والملفات والرد على العميل من داخل التطبيق.</p>
+            <div class="form-group">
+                <label for="adminChatConversationSelect">اختر محادثة</label>
+                <select id="adminChatConversationSelect" onchange="loadAdminConversationMessages()">
+                    <option value="">لا توجد محادثات بعد</option>
+                </select>
+            </div>
+            <div class="btn-group" style="margin-bottom:12px;">
+                <button class="secondary" onclick="loadAdminConversations()">تحديث قائمة المحادثات</button>
+            </div>
+            <div id="adminChatMessages" class="chat-messages" aria-live="polite">
+                <div class="chat-empty">اختر محادثة لعرض الرسائل.</div>
+            </div>
+            <div class="chat-compose">
+                <textarea id="adminChatText" maxlength="8000" placeholder="اكتب رد الوكالة للعميل..."></textarea>
+                <label for="adminChatFile">إرفاق ملف للعميل (صورة أو فيديو أو صوت أو PDF)</label>
+                <input id="adminChatFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a,application/pdf">
+                <button type="button" onclick="sendAdminChatMessage()">إرسال رد الوكالة</button>
+            </div>
+            <p id="adminChatStatus" class="status-msg" aria-live="polite"></p>
         </div>
 
         <!-- تبويب المالية -->
