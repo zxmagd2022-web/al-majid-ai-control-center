@@ -489,22 +489,24 @@
       }
     })();
 
+    let finalStatusMessage = "";
+    let finalStatusIsError = false;
     try {
       const client = initializeSupabase();
       const { data, error } = await client.functions.invoke("run-ai-team", { body: {} });
       if (error) throw error;
 
       const finalProgress = await refreshAiTaskProgress();
-      setStatus(
+      finalStatusMessage =
         "انتهى طلب التشغيل: " + (data.completed || 0) + " من " +
         (data.total_pending_loaded || 0) + " مهمة في هذا الطلب. " +
         "الحالة الإجمالية: " + finalProgress.completed + "/" +
         finalProgress.total + " مكتملة، " + finalProgress.failed +
-        " فاشلة، " + finalProgress.pending + " بانتظار التنفيذ."
-      );
+        " فاشلة، " + finalProgress.pending + " بانتظار التنفيذ.";
     } catch (error) {
       console.error("AI team run failed:", error);
-      setStatus("aiRunStatus", "تعذر التشغيل. تحقق من الاتصال وصلاحية المدير وسجلات الوظيفة.", true);
+      finalStatusMessage = "تعذر التشغيل. تحقق من الاتصال وصلاحية المدير وسجلات الوظيفة.";
+      finalStatusIsError = true;
     } finally {
       aiTeamRunInProgress = false;
       await progressLoop;
@@ -514,6 +516,7 @@
         runButton.removeAttribute("aria-busy");
       }
       await loadDashboardData();
+      if (finalStatusMessage) setStatus("aiRunStatus", finalStatusMessage, finalStatusIsError);
     }
   }
 
