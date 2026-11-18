@@ -1,6 +1,5 @@
-
 /* AL MAJID AI CONTROL CENTER
-   Frontend Authentication - Test Branch
+   Frontend Authentication - Safer Session Handling
    This file does not replace the Supabase Edge Function.
 */
 
@@ -15,6 +14,7 @@
 
   let supabaseClient = null;
   let loginInProgress = false;
+  let sessionRestoreInProgress = false;
 
   function getElement(id) {
     return document.getElementById(id);
@@ -27,6 +27,12 @@
 
     status.textContent = message;
     status.style.color = isError ? "#ef4444" : "#10b981";
+  }
+
+  function createAuthError(message, code) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
   }
 
   function initializeSupabase() {
@@ -78,25 +84,47 @@
   }
 
   async function verifyActiveDirector(client) {
-    const {
-      data: isDirector,
-      error
-    } = await client.rpc("is_active_director");
+    let result;
+
+    try {
+      result = await client.rpc("is_active_director");
+    } catch (error) {
+      console.error("Director verification request failed:", error);
+      throw createAuthError(
+        "تعذر الاتصال بخدمة التحقق من صلاحية المدير. تحقق من الاتصال ثم حاول مجدداً. لم يتم إنهاء جلستك.",
+        "DIRECTOR_VERIFICATION_UNAVAILABLE"
+      );
+    }
+
+    const { data: isDirector, error } = result || {};
 
     if (error) {
       console.error("Director verification failed:", error.message);
-      throw new Error(
-        "تعذر التحقق من صلاحية المدير. يرجى مراجعة إعدادات الصلاحيات."
+      throw createAuthError(
+        "تعذر التحقق من صلاحية المدير حالياً. تحقق من الاتصال أو إعدادات الخدمة ثم حاول مجدداً. لم يتم إنهاء جلستك.",
+        "DIRECTOR_VERIFICATION_UNAVAILABLE"
       );
     }
 
     if (isDirector !== true) {
-      throw new Error(
-        "هذا الحساب لا يملك صلاحية المدير النشط."
+      throw createAuthError(
+        "هذا الحساب لا يملك صلاحية المدير النشط.",
+        "DIRECTOR_ACCESS_DENIED"
       );
     }
 
     return true;
+  }
+
+  async function safelySignOut(client, reason) {
+    try {
+      const { error } = await client.auth.signOut();
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error("Sign-out failed:", reason, error);
+      return false;
+    }
   }
 
   async function loginAdmin() {
@@ -118,16 +146,12 @@
 
     try {
       const client = initializeSupabase();
-
-      const {
-        data,
-        error
-      } = await client.auth.signInWithPassword({
+      const { data, error } = await client.auth.signInWithPassword({
         email,
         password
       });
 
-      if (error || !data.user) {
+      if (error || !data?.user) {
         throw new Error(
           "تعذر تسجيل الدخول. تحقق من البيانات وحاول مجدداً."
         );
@@ -136,7 +160,9 @@
       try {
         await verifyActiveDirector(client);
       } catch (verificationError) {
-        await client.auth.signOut();
+        if (verificationError.code === "DIRECTOR_ACCESS_DENIED") {
+          await safelySignOut(client, "account is not an active director");
+        }
         throw verificationError;
       }
 
@@ -148,11 +174,14 @@
 
     } catch (error) {
       console.error("Admin login error:", error);
+      showSection("adminLoginSection");
       showLoginMessage(
         error.message || "حدث خطأ أثناء تسجيل الدخول.",
         true
       );
     } finally {
+      const passwordInput = getElement("adminPassword");
+      if (passwordInput) passwordInput.value = "";
       loginInProgress = false;
     }
   }
@@ -162,9 +191,7 @@
       const client = initializeSupabase();
       const { error } = await client.auth.signOut();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       showSection("adminLoginSection");
       showLoginMessage("تم تسجيل الخروج بنجاح.");
@@ -172,43 +199,66 @@
     } catch (error) {
       console.error("Logout error:", error);
       showLoginMessage(
-        "تعذر إكمال تسجيل الخروج. حاول مرة أخرى.",
+        "تعذر إكمال تسجيل الخروج. لم نغيّر حالة العرض؛ حاول مرة أخرى.",
         true
       );
     }
   }
 
   async function restoreAdminSession() {
+    if (sessionRestoreInProgress) return;
+    sessionRestoreInProgress = true;
+
     try {
       const client = initializeSupabase();
+      const { data, error } = await client.auth.getSession();
 
-      const {
-        data,
-        error
-      } = await client.auth.getSession();
+      if (error) {
+        console.error("Session retrieval failed:", error);
+        showSection("adminLoginSection");
+        showLoginMessage(
+          "تعذر استعادة الجلسة بسبب مشكلة اتصال. حاول تحديث الصفحة أو تسجيل الدخول مجدداً. لم يتم إنهاء جلستك تلقائياً.",
+          true
+        );
+        return;
+      }
 
-      if (error) throw error;
-
-      if (!data.session) {
+      if (!data?.session) {
         showSection("adminLoginSection");
         return;
       }
 
-      await verifyActiveDirector(client);
+      try {
+        await verifyActiveDirector(client);
+      } catch (verificationError) {
+        if (verificationError.code === "DIRECTOR_ACCESS_DENIED") {
+          await safelySignOut(client, "restored account is not an active director");
+          showLoginMessage(
+            "هذا الحساب لا يملك صلاحية المدير النشط. يرجى استخدام حساب المدير.",
+            true
+          );
+        } else {
+          showLoginMessage(
+            "تعذر التحقق من صلاحية المدير بسبب مشكلة مؤقتة. لم يتم إنهاء جلستك؛ حاول تسجيل الدخول مجدداً بعد التأكد من الاتصال.",
+            true
+          );
+        }
+
+        showSection("adminLoginSection");
+        return;
+      }
+
       showSection("dashboardSection");
 
     } catch (error) {
       console.error("Session restoration failed:", error);
-
-      if (supabaseClient) {
-        await supabaseClient.auth.signOut();
-      }
-
       showSection("adminLoginSection");
       showLoginMessage(
-        "انتهت الجلسة أو تعذر التحقق من صلاحية المدير. سجل الدخول مجدداً.",
+        "تعذر استعادة الجلسة حالياً. لم يتم إنهاء جلستك تلقائياً؛ حاول مرة أخرى.",
         true
       );
+    } finally {
+      sessionRestoreInProgress = false;
     }
   }
 
