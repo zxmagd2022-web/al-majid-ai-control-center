@@ -9,6 +9,10 @@
   const SUPABASE_URL =
     "https://cafvkonbubrqsabsywry.supabase.co";
 
+  // نفس مفتاح التخزين الافتراضي لمشروع Supabase، محدد صراحةً لضمان ثباته.
+  const ADMIN_AUTH_STORAGE_KEY =
+    "sb-cafvkonbubrqsabsywry-auth-token";
+
   const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
 
@@ -47,6 +51,7 @@
       SUPABASE_PUBLISHABLE_KEY,
       {
         auth: {
+          storageKey: ADMIN_AUTH_STORAGE_KEY,
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true
@@ -169,8 +174,15 @@
 
       showSection("dashboardSection");
       showLoginMessage("تم التحقق من صلاحية المدير بنجاح.");
-      await loadDashboardData();
-      await loadPayments();
+      try {
+        await loadDashboardData();
+        await loadPayments();
+      } catch (dashboardError) {
+        console.error(
+          "Dashboard data loading failed after login; admin session retained:",
+          dashboardError
+        );
+      }
 
       const passwordInput = getElement("adminPassword");
       if (passwordInput) passwordInput.value = "";
@@ -230,6 +242,10 @@
 
       if (!data?.session) {
         showSection("adminLoginSection");
+        showLoginMessage(
+          "لم يتم العثور على جلسة محفوظة في هذا المتصفح. سجّل الدخول مرة أخرى؛ سنستخدم هذه الرسالة لتحديد سبب عدم الاحتفاظ بالجلسة.",
+          true
+        );
         return;
       }
 
@@ -255,8 +271,15 @@
       }
 
       showSection("dashboardSection");
-      await loadDashboardData();
-      await loadPayments();
+      try {
+        await loadDashboardData();
+        await loadPayments();
+      } catch (dashboardError) {
+        console.error(
+          "Dashboard data loading failed after session restoration; admin session retained:",
+          dashboardError
+        );
+      }
 
     } catch (error) {
       console.error("Session restoration failed:", error);
