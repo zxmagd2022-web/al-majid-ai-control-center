@@ -1,0 +1,31 @@
+name: Deploy AL MAJID AI CONTROL CENTER (Development)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: al-majid-ai-control-center-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy-development:
+    if: github.ref == 'refs/heads/dev/cloudflare-deploy-fix'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Deploy isolated development Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.jsonc
