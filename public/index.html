@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز التحكم بالذكاء الاصطناعي في الماجد</title>
+    <!-- مكتبة Supabase للاتصال بقاعدة البيانات والمصادقة -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            line-height: 1.6;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 25px 15px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 22px;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .hidden { display: none !important; }
+        .form-group { margin-bottom: 15px; }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-dark);
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: var(--primary-hover); }
+        button.secondary { background: #475569; }
+        button.secondary:hover { background: #334155; }
+        button.danger { background: var(--danger); }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-box {
+            background: var(--bg-dark);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-box h3 {
+            font-size: 26px;
+            color: var(--primary);
+        }
+
+        .status-msg {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--success);
+        }
+
+        .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+        .chat-messages {
+            min-height: 220px; max-height: 420px; overflow-y: auto;
+            padding: 12px; border: 1px solid var(--border-color);
+            border-radius: 10px; background: var(--bg-dark);
+        }
+        .chat-message {
+            max-width: 92%; margin: 8px 0; padding: 10px 12px;
+            border-radius: 10px; overflow-wrap: anywhere;
+            border: 1px solid var(--border-color); background: var(--card-bg);
+        }
+        .chat-message.chat-customer { margin-right: auto; border-color: #2563eb; }
+        .chat-message.chat-agency, .chat-message.chat-ai, .chat-message.chat-human {
+            margin-left: auto; border-color: #059669;
+        }
+        .chat-message small { display:block; color:var(--text-muted); margin-top:6px; }
+        .chat-message img, .chat-message video { display:block; max-width:100%; max-height:260px; border-radius:8px; margin-top:8px; }
+        .chat-message audio { display:block; width:100%; margin-top:8px; }
+        .chat-empty { color:var(--text-muted); text-align:center; padding:24px 8px; }
+        .chat-compose { display:grid; gap:10px; margin-top:12px; }
+        .chat-compose textarea { min-height:80px; resize:vertical; }
+
+        @media (max-width: 600px) {
+            .btn-group button, .nav-tabs button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>مركز التحكم بالذكاء الاصطناعي في الماجد</h1>
+        <p>إدارة وكالة الماجد للتسويق والذكاء الاصطناعي</p>
+    </header>
+
+    <!-- 1. قسم تسجيل دخول الإدارة -->
+    <div id="adminLoginSection" class="card">
+        <h2>تسجيل دخول الإدارة</h2>
+        <div class="form-group">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="adminEmail" placeholder="أدخل البريد الإلكتروني للمدير">
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور">
+        </div>
+        <div class="btn-group">
+            <button onclick="loginAdmin()">تسجيل الدخول</button>
+            <button class="secondary" onclick="showSection('marketSection')">تصفح السوق الإلكتروني</button>
+        </div>
+        <p id="loginStatus" class="status-msg"></p>
+    </div>
+
+    <!-- 2. قسم السوق الإلكتروني -->
+    <div id="marketSection" class="card hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2 style="border: none; margin: 0;">السوق الإلكتروني</h2>
+            <div class="btn-group">
+                <button class="secondary" onclick="showSection('sellerSection')">بوابة البائعين</button>
+                <button class="secondary" onclick="showSection('adminLoginSection')">دخول الإدارة</button>
+            </div>
+        </div>
+        <div class="card" style="background:var(--bg-dark);margin-bottom:18px;">
+            <h3 style="margin-bottom:10px;">بوابة العميل — الدفع ورفع الإيصال</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">سجّل الدخول بحساب العميل المرتبط لدى الوكالة. لن يظهر إلا المشروع المرتبط بحسابك والمبلغ الذي اعتمدته الإدارة.</p>
+            <div class="grid">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="customerEmail" autocomplete="username" placeholder="بريد العميل">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="customerPassword" autocomplete="current-password" placeholder="كلمة مرور العميل">
+                </div>
+            </div>
+            <div class="btn-group" style="margin-bottom:12px;">
+                <button onclick="customerSignIn()">دخول العميل</button>
+                <button class="secondary" onclick="customerSignOut()">خروج العميل</button>
+            </div>
+            <div class="form-group">
+                <label>مشروع العميل</label>
+                <select id="customerProjectSelect" onchange="document.getElementById('customerPaymentId').value=''">
+                    <option value="">سجّل الدخول أولاً</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>طريقة الدفع</label>
+                <select id="customerPaymentMethod">
+                    <option value="bank_transfer">تحويل بنكي</option>
+                    <option value="gateway">بوابة دفع</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+            <div class="card" style="background:var(--bg-dark);border:1px solid var(--success);margin:12px 0;">
+                <h4 style="margin-bottom:10px;color:var(--success);">بيانات التحويل البنكي المعتمدة — OPay</h4>
+                <div style="display:grid;gap:8px;">
+                    <div><span style="color:var(--text-muted);font-size:12px;">البنك</span><br><strong>OPay Digital Services Limited (OPay)</strong></div>
+                    <div><span style="color:var(--text-muted);font-size:12px;">رقم الحساب</span><br><strong dir="ltr" style="font-size:20px;letter-spacing:1px;">8187299961</strong></div>
+                    <div><span style="color:var(--text-muted);font-size:12px;">اسم صاحب الحساب</span><br><strong>MOHAMMED UMAR ISSA ABDALLAH</strong></div>
+                </div>
+                <p style="color:var(--text-muted);font-size:12px;margin-top:12px;">حوّل المبلغ الظاهر في طلب الدفع فقط، وتأكد من اسم المستفيد قبل التحويل. رفع الإيصال لا يعني تأكيد استلام الأموال؛ اعتماد الدفع يتم بعد مراجعة التحويل فعلياً من الإدارة.</p>
+            </div>
+            <button onclick="requestCustomerPayment()">إنشاء / عرض طلب الدفع</button>
+            <div class="form-group" style="margin-top:12px;">
+                <label>معرف طلب الدفع</label>
+                <input id="customerPaymentId" readonly placeholder="يظهر بعد إنشاء الطلب">
+            </div>
+            <div class="form-group">
+                <label>ملف الإيصال (PDF أو صورة، حتى 10MB)</label>
+                <input id="customerReceiptFile" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">
+            </div>
+            <button onclick="uploadCustomerReceipt()">رفع الإيصال وربطه بالطلب</button>
+            <p id="customerStatus" class="status-msg" aria-live="polite"></p>
+
+            <section id="customerChatPanel" class="card hidden" style="background:var(--card-bg);margin-top:16px;">
+                <h3 style="margin-bottom:8px;">محادثة الماجد — خدمة العملاء</h3>
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">اكتب رسالتك أو أرفق صورة أو فيديو أو رسالة صوتية. الحد الأقصى للملف 50MB.</p>
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="customerChatLanguage">لغة المحادثة</label>
+                        <select id="customerChatLanguage">
+                            <option value="ar">العربية</option>
+                            <option value="en">English</option>
+                            <option value="ha">Hausa</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerConversationSelect">المحادثات السابقة</label>
+                        <select id="customerConversationSelect" onchange="loadCustomerConversationMessages()">
+                            <option value="">لا توجد محادثات بعد</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-bottom:12px;">
+                    <button onclick="startCustomerConversation()">بدء محادثة جديدة للمشروع المحدد</button>
+                    <button class="secondary" onclick="loadCustomerConversations()">تحديث المحادثات</button>
+                </div>
+                <div id="customerChatMessages" class="chat-messages" aria-live="polite">
+                    <div class="chat-empty">سجّل الدخول واختر مشروعاً لبدء المحادثة.</div>
+                </div>
+                <div class="chat-compose">
+                    <textarea id="customerChatText" maxlength="8000" placeholder="اكتب رسالتك إلى فريق الماجد..."></textarea>
+                    <label for="customerChatFile">إرفاق صورة أو فيديو أو صوت أو PDF</label>
+                    <input id="customerChatFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a,application/pdf">
+                    <div class="btn-group">
+                        <button type="button" class="secondary" id="customerVoiceButton" onclick="toggleCustomerVoiceRecording()">تسجيل رسالة صوتية</button>
+                        <button type="button" onclick="sendCustomerChatMessage()">إرسال الرسالة</button>
+                    </div>
+                </div>
+                <p id="customerChatStatus" class="status-msg" aria-live="polite"></p>
+                <p style="color:var(--text-muted);font-size:12px;margin-top:8px;">تنبيه: حفظ الرسائل والملفات متاح في هذه المرحلة. تفريغ الصوت وتحليل الصور والفيديو والرد الصوتي بالذكاء الاصطناعي سيتم ربطه في مرحلة المعالجة التالية.</p>
+            </section>
+        </div>
+        <div class="form-group">
+            <input type="text" id="searchMarket" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." onkeyup="renderMarket()">
+        </div>
+        <div id="marketGrid" class="grid">
+            <div class="stat-box">
+                <h4>موظف خدمة عملاء AI</h4>
+                <p style="color: var(--text-muted); font-size: 13px; margin: 8px 0;">رد آلي ذكي على مدار الساعة</p>
+                <strong style="color: var(--success);">متاح للطلب</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. بوابة البائعين -->
+    <div id="sellerSection" class="card hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+            <h2 style="border: none; margin: 0;">بوابة البائعين - إضافة منتج</h2>
+            <button class="secondary" onclick="showSection('marketSection')">العودة للسوق</button>
+        </div>
+        <div class="form-group">
+            <label>اسم المنتج أو الخدمة</label>
+            <input type="text" id="productTitle" placeholder="مثال: بوت واتساب للرد التلقائي">
+        </div>
+        <div class="form-group">
+            <label>وصف المنتج</label>
+            <textarea id="productDesc" rows="3" placeholder="اكتب تفاصيل المنتج..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>السعر</label>
+            <input type="number" id="productPrice" step="0.01" placeholder="0.00">
+        </div>
+        <button onclick="addProduct()">إرسال المنتج للمراجعة</button>
+        <p id="sellerStatus" class="status-msg"></p>
+    </div>
+
+    <!-- 4. لوحة التحكم الرئيسية -->
+    <div id="dashboardSection" class="hidden">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span>مرحباً بك في مركز التحكم الآمن</span>
+                <button class="danger" onclick="logoutAdmin()">تسجيل الخروج</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button onclick="switchTab('statsTab')">الإحصائيات</button>
+            <button class="secondary" onclick="switchTab('employeesTab')">الموظفين AI</button>
+            <button class="secondary" onclick="switchTab('clientsTab')">العملاء</button>
+            <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
+            <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
+            <button class="secondary" onclick="switchTab('chatTab')">محادثات العملاء</button>
+        </div>
+
+        <!-- تبويب الإحصائيات -->
+        <div id="statsTab" class="card tab-content">
+            <h2>نظرة عامة على الأداء</h2>
+            <div class="grid">
+                <div class="stat-box">
+                    <h3 id="statEmployees">0</h3>
+                    <p>موظفو الذكاء الاصطناعي</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="statClients">0</h3>
+                    <p>العملاء النشطون</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="statProjects">0</h3>
+                    <p>المشاريع القائمة</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب الموظفين -->
+        <div id="employeesTab" class="card tab-content hidden">
+            <h2>إدارة موظفي الذكاء الاصطناعي</h2>
+            <p style="color:var(--text-muted);margin-bottom:12px;">تشغيل المهام بالتتابع. التحضير فقط؛ النشر والتواصل الخارجي والمعاملات المالية غير مسموحة.</p>
+            <div class="btn-group" style="margin-bottom:15px;">
+                <button onclick="runAiTeam()">تشغيل فريق الذكاء الاصطناعي (10 موظفين)</button>
+                <button class="secondary" onclick="loadDashboardData()">تحديث الحالة</button>
+            </div>
+            <p id="aiRunStatus" class="status-msg" aria-live="polite"></p>
+            <div id="aiTasksList" style="margin-top:15px;"></div>
+            <div class="form-group">
+                <label>اسم الموظف الذكي</label>
+                <input type="text" id="empName" placeholder="مثال: مساعد المبيعات الذكي">
+            </div>
+            <div class="form-group">
+                <label>دور الموظف / تعليمات النظام (System Prompt)</label>
+                <input type="text" id="empRole" placeholder="مثال: خدمة عملاء متخصصة">
+            </div>
+            <button onclick="addEmployee()">إضافة موظف AI</button>
+            <ul id="employeesList" style="margin-top: 15px; list-style: none;"></ul>
+        </div>
+
+        <!-- تبويب العملاء -->
+        <div id="clientsTab" class="card tab-content hidden">
+            <h2>إدارة العملاء</h2>
+            <div class="form-group">
+                <label>اسم العميل</label>
+                <input type="text" id="clientName" placeholder="اسم العميل أو الجهة">
+            </div>
+            <div class="form-group">
+                <label>النشاط التجاري</label>
+                <input type="text" id="clientBusiness" placeholder="مثال: تجارة إلكترونية، أسر منتجة">
+            </div>
+            <div class="grid" style="margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>رقم الهاتف</label>
+                    <input type="text" id="clientPhone" placeholder="رقم الهاتف">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>رقم الواتساب</label>
+                    <input type="text" id="clientWhatsapp" placeholder="رقم واتساب">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="clientEmail" placeholder="email@domain.com">
+            </div>
+            <div class="grid" style="margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>الدولة</label>
+                    <input type="text" id="clientCountry" value="Nigeria" placeholder="مثال: نيجيريا">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>الولاية (State)</label>
+                    <select id="clientState">
+                        <option value="">اختر الولاية...</option>
+                        <option value="Abia">Abia</option>
+                        <option value="Adamawa">Adamawa</option>
+                        <option value="Akwa Ibom">Akwa Ibom</option>
+                        <option value="Anambra">Anambra</option>
+                        <option value="Bauchi">Bauchi</option>
+                        <option value="Bayelsa">Bayelsa</option>
+                        <option value="Benue">Benue</option>
+                        <option value="Borno">Borno</option>
+                        <option value="Cross River">Cross River</option>
+                        <option value="Delta">Delta</option>
+                        <option value="Ebonyi">Ebonyi</option>
+                        <option value="Edo">Edo</option>
+                        <option value="Ekiti">Ekiti</option>
+                        <option value="Enugu">Enugu</option>
+                        <option value="Gombe">Gombe</option>
+                        <option value="Imo">Imo</option>
+                        <option value="Jigawa">Jigawa</option>
+                        <option value="Kaduna">Kaduna</option>
+                        <option value="Kano">Kano</option>
+                        <option value="Katsina">Katsina</option>
+                        <option value="Kebbi">Kebbi</option>
+                        <option value="Kogi">Kogi</option>
+                        <option value="Kwara">Kwara</option>
+                        <option value="Lagos">Lagos</option>
+                        <option value="Nasarawa">Nasarawa</option>
+                        <option value="Niger">Niger</option>
+                        <option value="Ogun">Ogun</option>
+                        <option value="Ondo">Ondo</option>
+                        <option value="Osun">Osun</option>
+                        <option value="Oyo">Oyo</option>
+                        <option value="Plateau">Plateau</option>
+                        <option value="Rivers">Rivers</option>
+                        <option value="Sokoto">Sokoto</option>
+                        <option value="Taraba">Taraba</option>
+                        <option value="Yobe">Yobe</option>
+                        <option value="Zamfara">Zamfara</option>
+                        <option value="FCT Abuja">FCT Abuja</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ملاحظات إضافية</label>
+                <textarea id="clientNotes" rows="2" placeholder="ملاحظات حول العميل..."></textarea>
+            </div>
+            <button onclick="addClient()">إضافة عميل جديد</button>
+            <ul id="clientsList" style="margin-top: 15px; list-style: none;"></ul>
+            <div class="card" style="background:var(--bg-dark);margin-top:18px;">
+                <h3 style="margin-bottom:12px;">ربط حساب العميل المسجل</h3>
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">أدخل معرف حساب العميل (UUID) بعد التأكد من هويته. لا تستخدم رقم الهاتف بدلاً منه.</p>
+                <div class="form-group">
+                    <label>العميل</label>
+                    <select id="linkClientSelect"><option value="">اختر العميل...</option></select>
+                </div>
+                <div class="form-group">
+                    <label>معرف حساب العميل (Profile UUID)</label>
+                    <input id="clientProfileId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                </div>
+                <button onclick="linkClientAccount()">ربط حساب العميل</button>
+                <p id="clientLinkStatus" class="status-msg" aria-live="polite"></p>
+            </div>
+        </div>
+
+        <!-- تبويب المشاريع -->
+        <div id="projectsTab" class="card tab-content hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <h2 style="border: none; margin: 0;">إدارة المشاريع</h2>
+                <button onclick="openProjectModal()">+ إضافة مشروع جديد</button>
+            </div>
+
+            <!-- نموذج إضافة مشروع -->
+            <div id="projectFormContainer" class="card hidden" style="background: var(--bg-dark); border: 1px dashed var(--primary); margin-bottom: 15px;">
+                <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--primary);">تفاصيل المشروع الجديد</h3>
+                <div class="form-group">
+                    <label>اسم المشروع</label>
+                    <input type="text" id="projectTitle" placeholder="مثال: حملة تسويقية لأسرة منتجة">
+                </div>
+                <div class="form-group">
+                    <label>العميل المرتبط</label>
+                    <select id="projectClientSelect">
+                        <option value="">اختر العميل...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>وصف المشروع / الخدمات المطلوبة</label>
+                    <textarea id="projectDesc" rows="2" placeholder="تفاصيل المشروع..."></textarea>
+                </div>
+                <div class="grid" style="margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>الميزانية (NGN)</label>
+                        <input type="number" id="projectBudget" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>حالة المشروع</label>
+                        <select id="projectStatus">
+                            <option value="قيد الانتظار">قيد الانتظار</option>
+                            <option value="قيد التنفيذ">قيد التنفيذ</option>
+                            <option value="مكتمل">مكتمل</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="addProject()">حفظ المشروع</button>
+                    <button class="secondary" onclick="closeProjectModal()">إلغاء</button>
+                </div>
+            </div>
+
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:10px;">تحديد المبلغ المعتمد هنا يتيح للعميل إنشاء طلب دفع بهذا المبلغ من خلال بوابة العميل.</p>
+            <div id="projectsList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- تبويب محادثات العملاء -->
+        <div id="chatTab" class="card tab-content hidden">
+            <h2>محادثات العملاء</h2>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">هذه اللوحة للمدير النشط فقط. يمكن متابعة الرسائل والملفات والرد على العميل من داخل التطبيق.</p>
+            <div class="form-group">
+                <label for="adminChatConversationSelect">اختر محادثة</label>
+                <select id="adminChatConversationSelect" onchange="loadAdminConversationMessages()">
+                    <option value="">لا توجد محادثات بعد</option>
+                </select>
+            </div>
+            <div class="btn-group" style="margin-bottom:12px;">
+                <button class="secondary" onclick="loadAdminConversations()">تحديث قائمة المحادثات</button>
+            </div>
+            <div id="adminChatMessages" class="chat-messages" aria-live="polite">
+                <div class="chat-empty">اختر محادثة لعرض الرسائل.</div>
+            </div>
+            <div class="chat-compose">
+                <textarea id="adminChatText" maxlength="8000" placeholder="اكتب رد الوكالة للعميل..."></textarea>
+                <label for="adminChatFile">إرفاق ملف للعميل (صورة أو فيديو أو صوت أو PDF)</label>
+                <input id="adminChatFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,audio/x-m4a,application/pdf">
+                <button type="button" onclick="sendAdminChatMessage()">إرسال رد الوكالة</button>
+            </div>
+            <p id="adminChatStatus" class="status-msg" aria-live="polite"></p>
+        </div>
+
+        <!-- تبويب المالية -->
+        <div id="financeTab" class="card tab-content hidden">
+            <h2>الإيرادات والمصروفات</h2>
+            <p style="color: var(--text-muted);">السجل المالي وإدارة ميزانية الوكالة.</p>
+            <div class="card" style="background:var(--bg-dark);">
+                <h3 style="margin-bottom:12px;">طلبات الدفع والإيصالات</h3>
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">اعتماد المدير وحده يغيّر حالة الدفع إلى verified بعد التحقق الفعلي من وصول الأموال.</p>
+                <div class="btn-group" style="margin-bottom:12px;">
+                    <button class="secondary" onclick="loadPayments()">تحديث المدفوعات</button>
+                </div>
+                <div id="paymentsList"></div>
+            </div>
+            <div id="financeList" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- استدعاء ملف البرمجة والمنطق المستقل -->
+<script src="frontend.js"></script>
+</body>
+</html>
