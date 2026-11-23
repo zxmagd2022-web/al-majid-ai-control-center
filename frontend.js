@@ -332,8 +332,112 @@
     showNotConnectedMessage();
   }
 
-  function addEmployee() {
-    showNotConnectedMessage();
+  async function addEmployee() {
+    const name = getElement("empName")?.value.trim() || "";
+    const instructions = getElement("empRole")?.value.trim() || "";
+
+    if (!name || !instructions) {
+      showInlineStatus(
+        "employeesList",
+        "employeeFormStatus",
+        "أدخل اسم الموظف ودوره أو تعليمات عمله.",
+        true
+      );
+      return;
+    }
+
+    try {
+      const client = initializeSupabase();
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData?.user) {
+        throw new Error("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+      }
+
+      const { data: employees, error: employeesError } = await client
+        .from("am_ai_employees")
+        .select("code")
+        .order("code", { ascending: false })
+        .limit(100);
+      if (employeesError) throw employeesError;
+
+      const nextNumber = (employees || []).reduce((max, employee) => {
+        const match = String(employee.code || "").match(/^AI(\d+)$/i);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0) + 1;
+      const code = "AI" + String(nextNumber).padStart(2, "0");
+
+      const { data: employee, error: insertEmployeeError } = await client
+        .from("am_ai_employees")
+        .insert({
+          code,
+          name,
+          department: "فريق الوكالة",
+          job_title: instructions.slice(0, 160),
+          language: "ar,en,ha",
+          status: "active",
+          instructions
+        })
+        .select("id,code,name")
+        .single();
+      if (insertEmployeeError) throw insertEmployeeError;
+
+      const { data: latestTasks, error: tasksError } = await client
+        .from("am_ai_tasks")
+        .select("sequence_no")
+        .order("sequence_no", { ascending: false })
+        .limit(1);
+      if (tasksError) {
+        await client.from("am_ai_employees").delete().eq("id", employee.id);
+        throw tasksError;
+      }
+
+      const nextSequence = Number(latestTasks?.[0]?.sequence_no || 0) + 1;
+      const { error: insertTaskError } = await client
+        .from("am_ai_tasks")
+        .insert({
+          employee_id: employee.id,
+          title: "مرحلة العمل: " + name,
+          input_data: { mode: "prepare_only", source: "admin_employee_creation" },
+          status: "pending",
+          sequence_no: nextSequence,
+          assigned_by: userData.user.id
+        });
+
+      if (insertTaskError) {
+        const { error: rollbackError } = await client
+          .from("am_ai_employees")
+          .delete()
+          .eq("id", employee.id);
+        if (rollbackError) {
+          console.error("Employee rollback failed:", rollbackError);
+          throw new Error(
+            "تم إنشاء سجل الموظف لكن تعذر إنشاء مهمته أو التراجع عنه. راجع سجل الموظفين قبل إعادة المحاولة."
+          );
+        }
+        throw insertTaskError;
+      }
+
+      const nameField = getElement("empName");
+      const roleField = getElement("empRole");
+      if (nameField) nameField.value = "";
+      if (roleField) roleField.value = "";
+
+      await loadDashboardData();
+      showInlineStatus(
+        "employeesList",
+        "employeeFormStatus",
+        "تمت إضافة الموظف " + employee.code +
+          " وإنشاء مهمته التالية في تسلسل الفريق."
+      );
+    } catch (error) {
+      console.error("AI employee creation failed:", error);
+      showInlineStatus(
+        "employeesList",
+        "employeeFormStatus",
+        "تعذرت إضافة الموظف: " + (error.message || "خطأ غير معروف."),
+        true
+      );
+    }
   }
 
   async function addClient() {
