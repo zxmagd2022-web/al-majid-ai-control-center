@@ -547,7 +547,7 @@
       await loadDashboardData();
       closeProjectModal();
       showInlineStatus(
-        "projectFormContainer",
+        "projectsList",
         "projectFormStatus",
         "تم حفظ المشروع وتحديث القائمة."
       );
