@@ -336,12 +336,126 @@
     showNotConnectedMessage();
   }
 
-  function addClient() {
-    showNotConnectedMessage();
+  async function addClient() {
+    const name = getElement("clientName")?.value.trim() || "";
+    if (!name) {
+      showInlineStatus("clientsList", "clientsFormStatus", "يرجى إدخال اسم العميل.", true);
+      return;
+    }
+
+    try {
+      const client = initializeSupabase();
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData?.user) {
+        throw new Error("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+      }
+
+      const payload = {
+        name,
+        business_name: getElement("clientBusiness")?.value.trim() || null,
+        phone: getElement("clientPhone")?.value.trim() || null,
+        whatsapp: getElement("clientWhatsapp")?.value.trim() || null,
+        email: getElement("clientEmail")?.value.trim() || null,
+        country: getElement("clientCountry")?.value.trim() || "Nigeria",
+        state: getElement("clientState")?.value || null,
+        notes: getElement("clientNotes")?.value.trim() || null,
+        created_by: userData.user.id
+      };
+
+      const { error } = await client.from("am_clients").insert(payload);
+      if (error) throw error;
+
+      ["clientName", "clientBusiness", "clientPhone", "clientWhatsapp",
+        "clientEmail", "clientNotes"].forEach(id => {
+        const field = getElement(id);
+        if (field) field.value = "";
+      });
+      const stateField = getElement("clientState");
+      if (stateField) stateField.value = "";
+
+      await loadDashboardData();
+      showInlineStatus("clientsList", "clientsFormStatus", "تم حفظ العميل وتحديث القائمة.");
+    } catch (error) {
+      console.error("Client creation failed:", error);
+      showInlineStatus(
+        "clientsList",
+        "clientsFormStatus",
+        "تعذرت إضافة العميل: " + (error.message || "خطأ غير معروف."),
+        true
+      );
+    }
   }
 
-  function addProject() {
-    showNotConnectedMessage();
+  async function addProject() {
+    const title = getElement("projectTitle")?.value.trim() || "";
+    const clientId = getElement("projectClientSelect")?.value || "";
+    const budgetText = getElement("projectBudget")?.value.trim() || "";
+    const budget = budgetText === "" ? 0 : Number(budgetText);
+
+    if (!title || !clientId) {
+      showInlineStatus(
+        "projectFormContainer",
+        "projectFormStatus",
+        "أدخل اسم المشروع واختر العميل المرتبط.",
+        true
+      );
+      return;
+    }
+    if (!Number.isFinite(budget) || budget < 0) {
+      showInlineStatus(
+        "projectFormContainer",
+        "projectFormStatus",
+        "أدخل ميزانية صحيحة لا تقل عن صفر.",
+        true
+      );
+      return;
+    }
+
+    try {
+      const client = initializeSupabase();
+      const { data: userData, error: userError } = await client.auth.getUser();
+      if (userError || !userData?.user) {
+        throw new Error("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+      }
+
+      const payload = {
+        client_id: clientId,
+        title,
+        description: getElement("projectDesc")?.value.trim() || null,
+        budget,
+        currency: "NGN",
+        status: getElement("projectStatus")?.value || "قيد الانتظار",
+        created_by: userData.user.id
+      };
+
+      const { error } = await client.from("am_projects").insert(payload);
+      if (error) throw error;
+
+      ["projectTitle", "projectDesc", "projectBudget"].forEach(id => {
+        const field = getElement(id);
+        if (field) field.value = "";
+      });
+      const clientField = getElement("projectClientSelect");
+      if (clientField) clientField.value = "";
+      const statusField = getElement("projectStatus");
+      if (statusField) statusField.selectedIndex = 0;
+
+      await loadDashboardData();
+      closeProjectModal();
+      showInlineStatus(
+        "projectFormContainer",
+        "projectFormStatus",
+        "تم حفظ المشروع وتحديث القائمة."
+      );
+    } catch (error) {
+      console.error("Project creation failed:", error);
+      showInlineStatus(
+        "projectFormContainer",
+        "projectFormStatus",
+        "تعذر حفظ المشروع: " + (error.message || "خطأ غير معروف."),
+        true
+      );
+    }
   }
 
 
@@ -374,6 +488,19 @@
     if (!el) return;
     el.textContent = message;
     el.style.color = isError ? "#ef4444" : "#10b981";
+  }
+
+  function showInlineStatus(anchorId, statusId, message, isError = false) {
+    let status = getElement(statusId);
+    if (!status) {
+      status = document.createElement("p");
+      status.id = statusId;
+      status.className = "status-msg";
+      const anchor = getElement(anchorId);
+      if (!anchor || !anchor.parentNode) return;
+      anchor.parentNode.insertBefore(status, anchor);
+    }
+    setStatus(statusId, message, isError);
   }
 
   function escapeHtml(value) {
