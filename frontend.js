@@ -132,6 +132,34 @@
     }
   }
 
+  async function loginAdminWithGoogle() {
+    if (loginInProgress) return;
+
+    loginInProgress = true;
+    showLoginMessage("جارٍ تحويلك إلى Google لتسجيل الدخول...");
+
+    try {
+      const client = initializeSupabase();
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "google"
+      });
+
+      if (error) {
+        throw new Error(
+          "تعذر بدء تسجيل الدخول عبر Google. تحقق من تفعيل Google في إعدادات المصادقة ثم حاول مجدداً."
+        );
+      }
+    } catch (error) {
+      console.error("Admin Google login error:", error);
+      showSection("adminLoginSection");
+      showLoginMessage(
+        error.message || "تعذر تسجيل الدخول عبر Google حالياً.",
+        true
+      );
+      loginInProgress = false;
+    }
+  }
+
   async function loginAdmin() {
     if (loginInProgress) return;
 
@@ -1073,6 +1101,7 @@
 
   // ربط الدوال بأزرار HTML التي تستخدم onclick.
   window.loginAdmin = loginAdmin;
+  window.loginAdminWithGoogle = loginAdminWithGoogle;
   window.loadDashboardData = loadDashboardData;
   window.runAiTeam = runAiTeam;
   window.linkClientAccount = linkClientAccount;
