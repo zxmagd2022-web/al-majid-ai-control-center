@@ -1,13 +1,98 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=admin.html">
-  <title>مركز التحكم بالذكاء الاصطناعي في الماجد</title>
-  <script>window.location.replace("admin.html");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#08783a">
+<title>مركز التحكم بالذكاء الاصطناعي في الماجد</title>
+<style>
+:root{color-scheme:light;--green:#08783a;--deep:#123b29;--muted:#64756b;--line:#dce8df;--bg:#f3f8f4;--white:#fff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(180deg,#e8f5eb 0,#f5f9f6 340px,#f7faf8 100%);color:var(--deep);font-family:Tahoma,Arial,sans-serif}
+a{color:inherit}
+header{padding:30px 18px 22px;text-align:center}
+.brand{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:19px;background:#fff;border:1px solid var(--line);color:var(--green);font-size:30px;font-weight:900;box-shadow:0 8px 28px #123b2910;margin-bottom:14px}
+h1{font-size:clamp(23px,4vw,34px);margin:0 0 9px}
+.subtitle{margin:0;color:var(--muted);line-height:1.9;font-size:15px}
+main{width:min(100% - 32px,980px);margin:0 auto 42px}
+.quick-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 25px}
+.quick-link{display:flex;justify-content:center;align-items:center;gap:9px;text-decoration:none;background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 12px;font-weight:700;box-shadow:0 8px 24px #123b2908;transition:.18s}
+.quick-link:hover,.quick-link:focus-visible{border-color:#8dc6a0;transform:translateY(-2px);outline:none}
+.quick-link.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.search-wrap{position:relative;margin:0 0 18px}
+.search-wrap input{width:100%;padding:17px 48px 17px 16px;border:1px solid var(--line);border-radius:15px;background:#fff;color:var(--deep);font:inherit;font-size:15px;box-shadow:0 8px 24px #123b2908;outline:none}
+.search-wrap input:focus{border-color:var(--green);box-shadow:0 0 0 3px #08783a18}
+.search-icon{position:absolute;right:17px;top:50%;transform:translateY(-50%);font-size:19px;color:var(--muted)}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 2px 13px}
+.section-heading h2{font-size:20px;margin:0}
+.section-heading span{font-size:12px;color:var(--muted)}
+.service-card{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center;padding:23px;background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 14px 36px #123b290b}
+.service-info{display:flex;align-items:flex-start;gap:16px}
+.service-icon{flex:0 0 58px;width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:#eaf5ed;font-size:29px}
+.service-card h3{margin:2px 0 7px;font-size:19px}
+.service-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.9}
+.status{display:inline-flex;align-items:center;gap:7px;margin-top:12px;color:#08783a;font-size:13px;font-weight:700}
+.dot{width:8px;height:8px;border-radius:50%;background:#16a34a}
+.order{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;background:var(--green);color:#fff;padding:13px 18px;border-radius:12px;font-weight:700;white-space:nowrap}
+.empty{display:none;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);padding:22px;border-radius:14px}
+.admin-note{text-align:center;margin:23px 0 0;color:var(--muted);font-size:12px;line-height:1.9}
+footer{text-align:center;color:#87958c;font-size:12px;padding:0 16px 25px}
+@media(max-width:640px){header{padding-top:24px}.quick-links{grid-template-columns:1fr;gap:9px}.quick-link{padding:14px}.service-card{grid-template-columns:1fr;padding:19px}.order{width:100%}.service-info{gap:12px}.service-icon{width:50px;height:50px;flex-basis:50px;font-size:25px}.section-heading h2{font-size:18px}}
+</style>
 </head>
 <body>
-  <p>جاري فتح تسجيل دخول الإدارة… <a href="admin.html">اضغط هنا للمتابعة</a></p>
+<header>
+  <div class="brand" aria-hidden="true">M</div>
+  <h1>مركز التحكم بالذكاء الاصطناعي في الماجد</h1>
+  <p class="subtitle">إدارة وكالة الماجد للتسويق والذكاء الاصطناعي</p>
+</header>
+<main>
+  <nav class="quick-links" aria-label="روابط البوابات">
+    <a class="quick-link primary" href="https://kano234.com/">🛍️ السوق الإلكتروني</a>
+    <a class="quick-link" href="https://kano234.com/">🏪 بوابة البائعين</a>
+    <a class="quick-link" href="admin.html">🔐 دخول الإدارة</a>
+  </nav>
+
+  <label class="search-wrap">
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input id="serviceSearch" type="search" placeholder="ابحث عن منتج أو خدمة ذكاء اصطناعي..." aria-label="ابحث عن منتج أو خدمة ذكاء اصطناعي">
+  </label>
+
+  <section aria-labelledby="servicesTitle">
+    <div class="section-heading">
+      <h2 id="servicesTitle">خدمات الذكاء الاصطناعي</h2>
+      <span>خدمات وكالة الماجد</span>
+    </div>
+    <article class="service-card" id="customerServiceCard" data-search="موظف خدمة عملاء ai رد آلي ذكي خدمة العملاء واتساب على مدار الساعة">
+      <div class="service-info">
+        <div class="service-icon" aria-hidden="true">🤖</div>
+        <div>
+          <h3>موظف خدمة عملاء AI</h3>
+          <p>رد آلي ذكي على مدار الساعة لمساعدة عملائك والرد على استفساراتهم.</p>
+          <div class="status"><span class="dot" aria-hidden="true"></span>متاح للطلب</div>
+        </div>
+      </div>
+      <a class="order" href="https://wa.me/2348187299961?text=%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D8%B7%D9%84%D8%A8%20%D8%AE%D8%AF%D9%85%D8%A9%20%D9%85%D9%88%D8%B8%D9%81%20%D8%AE%D8%AF%D9%85%D8%A9%20%D8%B9%D9%85%D9%84%D8%A7%D8%A1%20AI" target="_blank" rel="noopener noreferrer">اطلب الخدمة</a>
+    </article>
+    <p class="empty" id="noResults">لا توجد خدمة مطابقة لعبارة البحث حالياً.</p>
+  </section>
+
+  <p class="admin-note">بوابة الإدارة مستقلة ومخصصة للمدير والموظفين المعتمدين. حسابات السوق لا تحصل على صلاحيات الإدارة.</p>
+</main>
+<footer>AL AL MAJID MARKETING AGENCY · Nigeria</footer>
+<script>
+(function(){
+  const search=document.getElementById('serviceSearch');
+  const card=document.getElementById('customerServiceCard');
+  const empty=document.getElementById('noResults');
+  search.addEventListener('input',function(){
+    const query=this.value.trim().toLocaleLowerCase();
+    const match=card.dataset.search.toLocaleLowerCase().includes(query);
+    card.style.display=match?'grid':'none';
+    empty.style.display=match?'none':'block';
+  });
+})();
+</script>
 </body>
 </html>
