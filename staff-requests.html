@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>طلبات انضمام الموظفين | AL MAJID AI CONTROL CENTER</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{color-scheme:dark;--bg:#0f172a;--card:#1e293b;--line:#334155;--muted:#94a3b8;--green:#16a34a;--red:#dc2626;--blue:#2563eb}
+    *{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:#f8fafc;font:15px/1.6 'Segoe UI',Tahoma,sans-serif}
+    main{max-width:1000px;margin:auto}header,.panel,.application{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+    h1{font-size:21px;margin:0 0 5px;color:#86efac}h2{font-size:17px;margin:0 0 12px}p,.muted{color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+    .stat{background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}.stat strong{display:block;font-size:25px}
+    button,select,input{font:inherit;border-radius:8px;padding:10px 12px;border:1px solid var(--line)}
+    button{background:var(--green);color:white;border:0;font-weight:700;cursor:pointer}button.secondary{background:#475569}button.reject{background:var(--red)}
+    select,input{background:#0f172a;color:white;width:100%;min-width:0}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
+    label{display:block;color:var(--muted);font-size:13px;margin-bottom:5px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .status{padding:10px;border-radius:8px;background:#0f172a;color:#86efac;white-space:pre-wrap}.error{color:#fca5a5}
+    .pill{display:inline-block;padding:3px 9px;border-radius:20px;background:#334155;font-size:12px}
+    .empty{text-align:center;padding:28px;color:var(--muted)}.hidden{display:none!important}
+    @media(max-width:520px){body{padding:10px}.actions button{flex:1}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="row"><div><h1>طلبات انضمام الموظفين</h1><div class="muted">AL MAJID AI CONTROL CENTER · لوحة المدير النشط فقط</div></div><button class="secondary" id="backButton" type="button">العودة إلى مركز التحكم</button></div>
+  </header>
+  <section id="loadingPanel" class="panel"><p>جارٍ التحقق من جلسة المدير وصلاحياته...</p></section>
+  <section id="accessPanel" class="panel hidden"><h2>تعذر فتح الصفحة</h2><p id="accessMessage" class="status error"></p><button id="loginButton" type="button">العودة لتسجيل دخول المدير</button></section>
+  <section id="dashboard" class="hidden">
+    <div class="panel">
+      <div class="row"><h2>ملخص الطلبات</h2><button id="refreshButton" type="button">تحديث الطلبات</button></div>
+      <div class="stats">
+        <div class="stat"><strong id="pendingCount">—</strong><span>بانتظار المراجعة</span></div>
+        <div class="stat"><strong id="approvedCount">—</strong><span>مقبول</span></div>
+        <div class="stat"><strong id="rejectedCount">—</strong><span>مرفوض</span></div>
+      </div>
+    </div>
+    <div class="panel"><h2>قائمة الطلبات</h2><div id="requestList" class="muted">جارٍ تحميل الطلبات...</div></div>
+    <p id="pageStatus" class="status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+<script src="staff-requests.js"></script>
+</body>
+</html>
