@@ -48,7 +48,7 @@ async function review(id,decision){
  await loadApplications();
 }
 $("refreshButton").addEventListener("click",loadApplications);
-$("backButton").addEventListener("click",()=>location.href="index.html");
-$("loginButton").addEventListener("click",()=>location.href="index.html");
+$("backButton").addEventListener("click",()=>location.href="admin.html");
+$("loginButton").addEventListener("click",()=>location.href="admin.html");
 init();
 })();
