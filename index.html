@@ -205,18 +205,29 @@
     <div id="adminLoginSection" class="card">
         <h2>تسجيل دخول الإدارة</h2>
         <div class="form-group">
-            <label>البريد الإلكتروني</label>
-            <input type="email" id="adminEmail" placeholder="أدخل البريد الإلكتروني للمدير">
+            <button type="button" id="adminGoogleLoginButton" onclick="loginAdminWithGoogle()" style="width:100%;background:#ffffff;color:#1f2937;border:1px solid #cbd5e1;">
+                <span aria-hidden="true">G</span> المتابعة باستخدام Google
+            </button>
         </div>
-        <div class="form-group">
-            <label>كلمة المرور</label>
-            <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور">
+        <p style="color:var(--text-muted);font-size:13px;margin:8px 0 14px;text-align:center;">
+            الدخول السريع للمدير — لن تُفتح لوحة التحكم إلا بعد التحقق من صلاحية المدير النشط.
+        </p>
+        <details>
+            <summary style="cursor:pointer;color:var(--text-muted);padding:10px 0;">الدخول بالبريد الإلكتروني وكلمة المرور (خيار احتياطي)</summary>
+            <div class="form-group" style="margin-top:12px;">
+                <label for="adminEmail">البريد الإلكتروني</label>
+                <input type="email" id="adminEmail" autocomplete="username" placeholder="أدخل البريد الإلكتروني للمدير">
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">كلمة المرور</label>
+                <input type="password" id="adminPassword" autocomplete="current-password" placeholder="أدخل كلمة المرور">
+            </div>
+            <button type="button" onclick="loginAdmin()">تسجيل الدخول بالبريد</button>
+        </details>
+        <div style="margin-top:14px;">
+            <button type="button" class="secondary" onclick="showSection('marketSection')">تصفح السوق الإلكتروني</button>
         </div>
-        <div class="btn-group">
-            <button onclick="loginAdmin()">تسجيل الدخول</button>
-            <button class="secondary" onclick="showSection('marketSection')">تصفح السوق الإلكتروني</button>
-        </div>
-        <p id="loginStatus" class="status-msg"></p>
+        <p id="loginStatus" class="status-msg" aria-live="polite"></p>
     </div>
 
     <!-- 2. قسم السوق الإلكتروني -->
