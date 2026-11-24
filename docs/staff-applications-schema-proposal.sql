@@ -1,4 +1,6 @@
--- Proposal only: do not run until reviewed and explicitly approved.
+-- Historical initial proposal. Superseded by the applied migration create_staff_applications_and_director_review.
+-- The applied version additionally requires department/job title on approval and blocks self-approval/director reassignment.
+-- The SQL migration was applied to Supabase project cafvkonbubrqsabsywry on 2026-11-24.
 -- Staff applications are separate from AI employees and staff invitations.
 create table if not exists public.staff_applications (
   id uuid primary key default gen_random_uuid(),
