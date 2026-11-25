@@ -534,12 +534,157 @@
     await runAiTeam();
   }
 
-  function addClient() {
-    showNotConnectedMessage();
+  async function addClient() {
+    const client = initializeSupabase();
+    const name = getElement("clientName")?.value.trim();
+    if (!name) return alert("أدخل اسم العميل أولاً.");
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (sessionError || !user) return alert("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+    const payload = {
+      name,
+      business_name: getElement("clientBusiness")?.value.trim() || null,
+      phone: getElement("clientPhone")?.value.trim() || null,
+      whatsapp: getElement("clientWhatsapp")?.value.trim() || null,
+      email: getElement("clientEmail")?.value.trim() || null,
+      country: getElement("clientCountry")?.value.trim() || "Nigeria",
+      state: getElement("clientState")?.value || null,
+      notes: getElement("clientNotes")?.value.trim() || null,
+      created_by: user.id
+    };
+    const button = document.querySelector('#clientsTab button[onclick="addClient()"]');
+    if (button) button.disabled = true;
+    try {
+      const { error } = await client.from("am_clients").insert(payload);
+      if (error) throw error;
+      ["clientName","clientBusiness","clientPhone","clientWhatsapp","clientEmail","clientNotes"].forEach(id => {
+        const input = getElement(id); if (input) input.value = "";
+      });
+      setStatus("clientFormStatus", "تم حفظ العميل بنجاح.");
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Client save failed:", error);
+      alert("تعذر حفظ العميل: " + (error.message || "خطأ غير معروف"));
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
-  function addProject() {
-    showNotConnectedMessage();
+  async function addProject() {
+    const client = initializeSupabase();
+    const title = getElement("projectTitle")?.value.trim();
+    const clientId = getElement("projectClientSelect")?.value;
+    const budgetValue = getElement("projectBudget")?.value.trim();
+    const budget = budgetValue === "" ? 0 : Number(budgetValue);
+    if (!title) return alert("أدخل اسم المشروع.");
+    if (!clientId) return alert("اختر العميل المرتبط بالمشروع.");
+    if (!Number.isFinite(budget) || budget < 0) return alert("أدخل ميزانية صحيحة.");
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (sessionError || !user) return alert("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+    const statusLabel = getElement("projectStatus")?.value || "قيد الانتظار";
+    const status = statusLabel === "قيد التنفيذ" ? "in_progress" :
+      statusLabel === "مكتمل" ? "completed" : "pending";
+    const button = document.querySelector('#projectFormContainer button[onclick="addProject()"]');
+    if (button) button.disabled = true;
+    try {
+      const { error } = await client.from("am_projects").insert({
+        client_id: clientId,
+        title,
+        description: getElement("projectDesc")?.value.trim() || null,
+        budget,
+        currency: "NGN",
+        status,
+        created_by: user.id
+      });
+      if (error) throw error;
+      ["projectTitle","projectDesc","projectBudget"].forEach(id => {
+        const input = getElement(id); if (input) input.value = "";
+      });
+      if (getElement("projectClientSelect")) getElement("projectClientSelect").value = "";
+      closeProjectModal();
+      await loadDashboardData();
+      alert("تم حفظ المشروع بنجاح.");
+    } catch (error) {
+      console.error("Project save failed:", error);
+      alert("تعذر حفظ المشروع: " + (error.message || "خطأ غير معروف"));
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function addFinanceTransaction() {
+    const client = initializeSupabase();
+    const type = getElement("financeType")?.value;
+    const amountValue = getElement("financeAmount")?.value.trim();
+    const amount = Number(amountValue);
+    const date = getElement("financeDate")?.value;
+    const file = getElement("financeReceipt")?.files?.[0];
+    if (!["income","expense"].includes(type)) return alert("اختر نوع الحركة المالية.");
+    if (!amountValue || !Number.isFinite(amount) || amount <= 0) return alert("أدخل مبلغاً صحيحاً أكبر من صفر.");
+    if (file && (!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type) || file.size > 10*1024*1024)) {
+      return alert("الإيصال يجب أن يكون JPG أو PNG أو WebP أو PDF وبحد أقصى 10MB.");
+    }
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (sessionError || !user) return alert("انتهت جلسة المدير. سجّل الدخول مجدداً.");
+    const button = getElement("saveFinanceButton");
+    if (button) button.disabled = true;
+    let uploadedPath = null;
+    try {
+      const { data: transaction, error } = await client.from("am_finance_transactions").insert({
+        type,
+        category: getElement("financeCategory")?.value.trim() || null,
+        amount,
+        currency: "NGN",
+        transaction_date: date || new Date().toISOString().slice(0,10),
+        description: getElement("financeDescription")?.value.trim() || null,
+        reference: getElement("financeReference")?.value.trim() || null,
+        recorded_by: user.id
+      }).select("id").single();
+      if (error) throw error;
+      if (file) {
+        const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1];
+        uploadedPath = "director/" + user.id + "/" + transaction.id + "/" + crypto.randomUUID() + "." + ext;
+        const { error: uploadError } = await client.storage.from("am-transaction-receipts").upload(uploadedPath,file,{
+          contentType:file.type,upsert:false
+        });
+        if (uploadError) throw uploadError;
+        const { error: receiptError } = await client.from("am_transaction_receipts").insert({
+          transaction_id:transaction.id,storage_path:uploadedPath,file_name:file.name,mime_type:file.type,uploaded_by:user.id
+        });
+        if (receiptError) throw receiptError;
+      }
+      ["financeAmount","financeCategory","financeDescription","financeReference","financeReceipt"].forEach(id=>{
+        const input=getElement(id); if(input) input.value="";
+      });
+      setStatus("financeStatus","تم حفظ الحركة المالية"+(file?" وإرفاق الإيصال.":"."),false);
+      await loadFinanceTransactions();
+    } catch (error) {
+      console.error("Finance save failed:",error);
+      setStatus("financeStatus","تعذر إكمال الحفظ: "+(error.message||"خطأ غير معروف")+
+        (uploadedPath?" (تم رفع الملف، لكن قد يحتاج ربطه بالحركة إلى مراجعة المدير).":""),true);
+    } finally { if(button) button.disabled=false; }
+  }
+
+  async function loadFinanceTransactions() {
+    const client = initializeSupabase();
+    const list = getElement("financeList");
+    if (!list) return;
+    const { data, error } = await client.from("am_finance_transactions")
+      .select("id,type,category,amount,currency,transaction_date,description,reference")
+      .order("transaction_date",{ascending:false}).order("created_at",{ascending:false});
+    if (error) {
+      list.textContent = "تعذر تحميل السجل المالي: " + error.message;
+      return;
+    }
+    if (!data?.length) { list.textContent = "لا توجد حركات مالية مسجلة بعد."; return; }
+    list.innerHTML = data.map(item =>
+      '<div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px">' +
+      '<strong>' + (item.type === "income" ? "إيراد" : "مصروف") + ' — ' + escapeHtml(item.amount) + ' ' + escapeHtml(item.currency) + '</strong>' +
+      '<div>' + escapeHtml(item.category || "بدون تصنيف") + ' · ' + escapeHtml(item.transaction_date) + '</div>' +
+      '<div style="color:var(--text-muted)">' + escapeHtml(item.description || "") + (item.reference ? " · " + escapeHtml(item.reference) : "") + '</div></div>'
+    ).join("");
   }
 
 
@@ -622,6 +767,8 @@
       const stat = getElement("statClients");
       if (stat) stat.textContent = String((clients || []).length);
     }
+
+    await loadFinanceTransactions().catch(error => console.warn("Finance transactions load failed:", error));
 
     const { data: projects, error: projectError } = await client
       .from("am_projects")
@@ -1309,6 +1456,8 @@
   window.createAiTask = createAiTask;
   window.addClient = addClient;
   window.addProject = addProject;
+  window.addFinanceTransaction = addFinanceTransaction;
+  window.loadFinanceTransactions = loadFinanceTransactions;
   window.openProjectModal = openProjectModal;
   window.closeProjectModal = closeProjectModal;
 
