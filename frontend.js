@@ -350,12 +350,6 @@
     // لم يتم ربط المنتجات بقاعدة البيانات بعد.
   }
 
-  function showNotConnectedMessage() {
-    alert(
-      "هذه الوظيفة لم تُربط بقاعدة البيانات بعد. لم يتم حفظ أي بيانات."
-    );
-  }
-
   let productSubmissionInProgress = false;
 
   function setProductSubmissionStatus(message, isError = false) {
