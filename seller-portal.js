@@ -206,7 +206,7 @@
   async function sendEmailCode(mode) {
     const email = el("email").value.trim().toLowerCase();
     const storeName = el("storeName").value.trim();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setStatus("authStatus", t("enterEmail"), true);
       el("email").focus();
       return;
@@ -336,7 +336,7 @@
       setStatus("productStatus", t("productNeed"), true);
       return;
     }
-    if (file && (!/^image\\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024)) {
+    if (file && (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 5 * 1024 * 1024)) {
       setStatus("productStatus", t("imageInvalid"), true);
       return;
     }
