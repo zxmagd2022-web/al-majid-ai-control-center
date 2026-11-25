@@ -242,6 +242,7 @@
             <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
             <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
             <button class="secondary" onclick="switchTab('chatTab')">محادثات العملاء</button>
+            <button class="secondary" type="button" onclick="showMarketAdminTab()">إدارة السوق الإلكتروني</button>
             <button class="secondary" type="button" onclick="window.location.href='staff-requests.html'">طلبات انضمام الموظفين</button>
         </div>
 
@@ -469,9 +470,38 @@
             </div>
             <div id="financeList" style="margin-top: 15px;"></div>
         </div>
+
+        <!-- إدارة السوق منفصلة عن عملاء وكالة الماجد -->
+        <div id="marketAdminTab" class="card tab-content hidden">
+            <h2>إدارة السوق الإلكتروني</h2>
+            <p style="color:var(--text-muted);margin-bottom:14px;">
+                هذا القسم مخصص لمراجعة حسابات البائعين ومنتجات السوق فقط. لا تُضاف هذه السجلات إلى عملاء وكالة الماجد.
+                يظل البائع مسؤولاً عن متجره ومنتجاته ومبيعاته.
+            </p>
+            <div class="btn-group" style="margin-bottom:14px;">
+                <button type="button" onclick="loadMarketAdminData()">تحديث بيانات السوق</button>
+                <a href="seller-portal.html" target="_blank" rel="noopener" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#475569;color:white;text-decoration:none;font-weight:bold;">فتح بوابة البائعين</a>
+                <a href="index.html" target="_blank" rel="noopener" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#475569;color:white;text-decoration:none;font-weight:bold;">فتح واجهة السوق</a>
+            </div>
+            <p id="marketAdminStatus" class="status-msg" role="status" aria-live="polite"></p>
+            <div class="grid" style="margin-bottom:16px;">
+                <div class="stat-box"><h3 id="marketSellerCount">—</h3><p>حسابات البائعين</p></div>
+                <div class="stat-box"><h3 id="marketProductCount">—</h3><p>منتجات السوق</p></div>
+                <div class="stat-box"><h3 id="marketPendingCount">—</h3><p>منتجات بانتظار المراجعة</p></div>
+            </div>
+            <div class="card" style="background:var(--bg-dark);">
+                <h3 style="margin-bottom:12px;">مراجعة البائعين</h3>
+                <div id="marketSellersList"><p style="color:var(--text-muted);">اضغط تحديث بيانات السوق لعرض الحسابات.</p></div>
+            </div>
+            <div class="card" style="background:var(--bg-dark);">
+                <h3 style="margin-bottom:12px;">مراجعة المنتجات</h3>
+                <div id="marketProductsList"><p style="color:var(--text-muted);">اضغط تحديث بيانات السوق لعرض المنتجات.</p></div>
+            </div>
+        </div>
     </div>
 </div>
 </div>
 <script src="frontend.js"></script>
+<script src="market-admin.js"></script>
 </body>
 </html>
