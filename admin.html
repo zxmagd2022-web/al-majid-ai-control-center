@@ -274,6 +274,19 @@
                 <button class="secondary" onclick="loadDashboardData()">تحديث الحالة</button>
             </div>
             <p id="aiRunStatus" class="status-msg" aria-live="polite"></p>
+            <div class="card" style="background:var(--bg-dark);margin:12px 0;">
+                <h3>إسناد مهمة جديدة للفريق</h3>
+                <div class="form-group">
+                    <label for="aiTaskTitle">عنوان المهمة</label>
+                    <input type="text" id="aiTaskTitle" maxlength="180" placeholder="مثال: إعداد حملة تسويقية لمتجر في كانو">
+                </div>
+                <div class="form-group">
+                    <label for="aiTaskDescription">تفاصيل المهمة والهدف المطلوب</label>
+                    <textarea id="aiTaskDescription" rows="4" maxlength="8000" placeholder="اكتب المطلوب بالتفصيل، والجمهور المستهدف، واللغة، وأي معلومات متوفرة..."></textarea>
+                </div>
+                <button type="button" onclick="createAiTask()">إرسال المهمة وتشغيل الموظفين بالتتابع</button>
+                <p style="color:var(--text-muted);font-size:12px;margin-top:8px;">التنفيذ تحضيري فقط؛ لا نشر ولا تواصل خارجي ولا معاملات مالية دون موافقة المدير.</p>
+            </div>
             <div id="aiTasksList" style="margin-top:15px;"></div>
             <div class="form-group">
                 <label>اسم الموظف الذكي</label>
