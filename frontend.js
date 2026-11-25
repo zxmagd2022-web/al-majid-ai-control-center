@@ -357,7 +357,8 @@
   }
 
   function addProduct() {
-    showNotConnectedMessage();
+    // Product submissions are handled by the dedicated Marketplace seller portal.
+    window.location.href = "https://kano234.com/seller";
   }
 
   function addEmployee() {
