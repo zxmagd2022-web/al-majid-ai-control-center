@@ -471,8 +471,67 @@
     }
   }
 
-  function addEmployee() {
-    showNotConnectedMessage();
+  async function addEmployee() {
+    const name = getElement("empName")?.value.trim() || "";
+    const instructions = getElement("empRole")?.value.trim() || "";
+    if (name.length < 2 || instructions.length < 5) {
+      return setStatus("aiRunStatus", "أدخل اسم الموظف وتعليمات واضحة (5 أحرف على الأقل).", true);
+    }
+    const client = initializeSupabase();
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError || !sessionData?.session?.user) {
+      return setStatus("aiRunStatus", "انتهت جلسة المدير. سجّل الدخول مجدداً.", true);
+    }
+    const { data: existing, error: listError } = await client
+      .from("am_ai_employees").select("code").order("code", { ascending: false }).limit(1);
+    if (listError) return setStatus("aiRunStatus", "تعذر قراءة رموز الموظفين: " + listError.message, true);
+    const lastNumber = Number(String(existing?.[0]?.code || "AI00").replace(/^AI/i, "")) || 0;
+    const code = "AI" + String(lastNumber + 1).padStart(2, "0");
+    const { error } = await client.from("am_ai_employees").insert({
+      code, name, department: "عام", job_title: name, language: "ar,en,ha",
+      instructions, status: "active"
+    });
+    if (error) return setStatus("aiRunStatus", "تعذر حفظ الموظف: " + error.message, true);
+    getElement("empName").value = "";
+    getElement("empRole").value = "";
+    setStatus("aiRunStatus", "تم حفظ الموظف " + code + " بنجاح.");
+    await loadDashboardData();
+  }
+
+  async function createAiTask() {
+    const title = getElement("aiTaskTitle")?.value.trim() || "";
+    const description = getElement("aiTaskDescription")?.value.trim() || "";
+    if (title.length < 3 || description.length < 10) {
+      return setStatus("aiRunStatus", "اكتب عنوان المهمة ووصفاً واضحاً لا يقل عن 10 أحرف.", true);
+    }
+    const client = initializeSupabase();
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError || !sessionData?.session?.user) {
+      return setStatus("aiRunStatus", "انتهت جلسة المدير. سجّل الدخول مجدداً.", true);
+    }
+    const { data: employees, error: employeeError } = await client
+      .from("am_ai_employees").select("id,name,code").eq("status", "active").order("code");
+    if (employeeError) return setStatus("aiRunStatus", "تعذر تحميل فريق الذكاء الاصطناعي: " + employeeError.message, true);
+    if (!employees?.length) return setStatus("aiRunStatus", "لا يوجد موظفون AI نشطون.", true);
+    const { data: pending, error: pendingError } = await client
+      .from("am_ai_tasks").select("id").eq("status", "pending").limit(1);
+    if (pendingError) return setStatus("aiRunStatus", "تعذر التحقق من المهام المعلقة: " + pendingError.message, true);
+    if (pending?.length) return setStatus("aiRunStatus", "توجد مهام معلقة بالفعل. شغّلها أولاً قبل إنشاء مهمة جديدة.", true);
+    const rows = employees.map((employee, index) => ({
+      employee_id: employee.id,
+      title: title + " — " + employee.name,
+      input_data: { project_context: { user_request: description }, handoff_required: true, execution_mode: "prepare_only" },
+      status: "pending",
+      sequence_no: index + 1,
+      assigned_by: sessionData.session.user.id
+    }));
+    const { error: insertError } = await client.from("am_ai_tasks").insert(rows);
+    if (insertError) return setStatus("aiRunStatus", "تعذر إنشاء المهام: " + insertError.message, true);
+    getElement("aiTaskTitle").value = "";
+    getElement("aiTaskDescription").value = "";
+    setStatus("aiRunStatus", "تم إنشاء " + rows.length + " مهام بالتتابع. جارٍ تشغيل الفريق...");
+    await refreshAiTaskProgress();
+    await runAiTeam();
   }
 
   function addClient() {
@@ -1247,6 +1306,7 @@
   window.renderMarket = renderMarket;
   window.addProduct = addProduct;
   window.addEmployee = addEmployee;
+  window.createAiTask = createAiTask;
   window.addClient = addClient;
   window.addProject = addProject;
   window.openProjectModal = openProjectModal;
