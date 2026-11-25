@@ -1210,6 +1210,14 @@
     if (form) form.classList.add("hidden");
   }
 
+  function bindVendorProductForm() {
+    const form = getElement("add-product-form");
+    if (form && form.dataset.marketSubmitBound !== "true") {
+      form.addEventListener("submit", addProduct);
+      form.dataset.marketSubmitBound = "true";
+    }
+  }
+
   // ربط الدوال بأزرار HTML التي تستخدم onclick.
   window.loginAdmin = loginAdmin;
   window.loginAdminWithGoogle = loginAdminWithGoogle;
@@ -1249,10 +1257,12 @@
     document.addEventListener("DOMContentLoaded", () => {
       restoreAdminSession();
       restoreCustomerSession();
+      bindVendorProductForm();
     });
   } else {
     restoreAdminSession();
     restoreCustomerSession();
+    bindVendorProductForm();
   }
 
 })();
