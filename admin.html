@@ -379,6 +379,7 @@
                 <textarea id="clientNotes" rows="2" placeholder="ملاحظات حول العميل..."></textarea>
             </div>
             <button onclick="addClient()">إضافة عميل جديد</button>
+            <p id="clientFormStatus" class="status-msg" role="status" aria-live="polite"></p>
             <ul id="clientsList" style="margin-top: 15px; list-style: none;"></ul>
             <div class="card" style="background:var(--bg-dark);margin-top:18px;">
                 <h3 style="margin-bottom:12px;">ربط حساب العميل المسجل</h3>
@@ -480,6 +481,41 @@
                     <button class="secondary" onclick="loadPayments()">تحديث المدفوعات</button>
                 </div>
                 <div id="paymentsList"></div>
+            </div>
+            <div class="card" style="background:var(--bg-dark);margin-top:15px;">
+                <h3 style="margin-bottom:12px;">تسجيل إيراد أو مصروف</h3>
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="financeType">نوع الحركة</label>
+                        <select id="financeType"><option value="income">إيراد</option><option value="expense">مصروف</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="financeAmount">المبلغ (NGN)</label>
+                        <input id="financeAmount" type="number" min="0.01" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="financeDate">التاريخ</label>
+                        <input id="financeDate" type="date">
+                    </div>
+                    <div class="form-group">
+                        <label for="financeCategory">التصنيف</label>
+                        <input id="financeCategory" type="text" placeholder="إعلان، تشغيل، عمولة...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="financeDescription">الوصف</label>
+                    <textarea id="financeDescription" rows="2" placeholder="تفاصيل الحركة المالية"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="financeReference">رقم المرجع (اختياري)</label>
+                    <input id="financeReference" type="text" placeholder="رقم التحويل أو المرجع">
+                </div>
+                <div class="form-group">
+                    <label for="financeReceipt">إرفاق إيصال (اختياري: JPG / PNG / WebP / PDF، حتى 10MB)</label>
+                    <input id="financeReceipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf">
+                </div>
+                <button type="button" id="saveFinanceButton" onclick="addFinanceTransaction()">حفظ الحركة المالية</button>
+                <p id="financeStatus" class="status-msg" role="status" aria-live="polite"></p>
             </div>
             <div id="financeList" style="margin-top: 15px;"></div>
         </div>
