@@ -356,8 +356,119 @@
     );
   }
 
-  function addProduct() {
-    showNotConnectedMessage();
+  let productSubmissionInProgress = false;
+
+  function setProductSubmissionStatus(message, isError = false) {
+    let status = getElement("product-status") ||
+      getElement("productStatus") ||
+      getElement("sellerProductStatus");
+
+    const form = getElement("add-product-form");
+    if (!status && form) {
+      status = document.createElement("p");
+      status.id = "product-status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      form.appendChild(status);
+    }
+
+    if (status) {
+      status.textContent = message;
+      status.style.color = isError ? "#ef4444" : "#10b981";
+    }
+  }
+
+  async function addProduct(event) {
+    if (event && typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    if (productSubmissionInProgress) return;
+
+    const titleInput = getElement("product-name") ||
+      getElement("productName") ||
+      getElement("sellerProductTitle");
+    const descriptionInput = getElement("product-description") ||
+      getElement("productDescription") ||
+      getElement("sellerProductDescription");
+    const priceInput = getElement("product-price") ||
+      getElement("productPrice") ||
+      getElement("sellerProductPrice");
+    const submitButton = getElement("submit-product-review") ||
+      getElement("submitProductReview") ||
+      (event && event.submitter);
+
+    const title = titleInput?.value?.trim() || "";
+    const description = descriptionInput?.value?.trim() || "";
+    const price = Number(priceInput?.value);
+
+    if (title.length < 2) {
+      setProductSubmissionStatus("أدخل اسم المنتج (حرفان على الأقل).", true);
+      titleInput?.focus();
+      return;
+    }
+    if (!priceInput || priceInput.value.trim() === "" ||
+        !Number.isFinite(price) || price <= 0) {
+      setProductSubmissionStatus("أدخل سعراً صحيحاً أكبر من صفر بالنايرا NGN.", true);
+      priceInput?.focus();
+      return;
+    }
+
+    productSubmissionInProgress = true;
+    if (submitButton) submitButton.disabled = true;
+    setProductSubmissionStatus("جارٍ التحقق من حساب البائع وحفظ المنتج للمراجعة...");
+
+    try {
+      const client = initializeSupabase();
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      const user = sessionData?.session?.user;
+      if (!user?.id || !user.email_confirmed_at) {
+        throw new Error("سجّل الدخول بحساب البائع وأكّد بريدك الإلكتروني أولاً.");
+      }
+
+      const { data: seller, error: sellerError } = await client
+        .from("am_market_sellers")
+        .select("id,status")
+        .eq("owner_user_id", user.id)
+        .maybeSingle();
+
+      if (sellerError) throw sellerError;
+      if (!seller || !["pending", "active"].includes(seller.status)) {
+        throw new Error("لم نعثر على متجر مرتبط بحسابك. سجّل المتجر أولاً وانتظر مراجعة الإدارة.");
+      }
+
+      const { data: savedProduct, error: insertError } = await client
+        .from("am_market_products")
+        .insert({
+          seller_id: seller.id,
+          title,
+          description: description || null,
+          price,
+          currency: "NGN",
+          status: "pending"
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+      if (!savedProduct?.id) {
+        throw new Error("لم نتلقَّ تأكيد حفظ المنتج من قاعدة البيانات.");
+      }
+
+      const form = getElement("add-product-form");
+      if (form) form.reset();
+      setProductSubmissionStatus("تم حفظ المنتج وإرساله للمراجعة بنجاح. لن يظهر في السوق قبل موافقة الإدارة.");
+    } catch (error) {
+      console.error("Vendor product submission failed:", error);
+      setProductSubmissionStatus(
+        "تعذر إرسال المنتج: " + (error?.message || "حدث خطأ غير معروف."),
+        true
+      );
+    } finally {
+      productSubmissionInProgress = false;
+      if (submitButton) submitButton.disabled = false;
+    }
   }
 
   function addEmployee() {
@@ -1099,6 +1210,14 @@
     if (form) form.classList.add("hidden");
   }
 
+  function bindVendorProductForm() {
+    const form = getElement("add-product-form");
+    if (form && form.dataset.marketSubmitBound !== "true") {
+      form.addEventListener("submit", addProduct);
+      form.dataset.marketSubmitBound = "true";
+    }
+  }
+
   // ربط الدوال بأزرار HTML التي تستخدم onclick.
   window.loginAdmin = loginAdmin;
   window.loginAdminWithGoogle = loginAdminWithGoogle;
@@ -1138,10 +1257,12 @@
     document.addEventListener("DOMContentLoaded", () => {
       restoreAdminSession();
       restoreCustomerSession();
+      bindVendorProductForm();
     });
   } else {
     restoreAdminSession();
     restoreCustomerSession();
+    bindVendorProductForm();
   }
 
 })();
