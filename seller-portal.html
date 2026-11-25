@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#087a43">
+  <title>بوابة البائعين | AL MAJID NIGERIA MARKETPLACE</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{color-scheme:light;--green:#087a43;--green-dark:#075d35;--ink:#17231c;--muted:#65736a;--line:#dce7df;--bg:#f3f8f4;--card:#fff;--red:#b42318}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;line-height:1.6}
+    .top{background:linear-gradient(120deg,#075d35,#0b8b4d);color:#fff;padding:24px 16px}
+    .top-inner{max-width:900px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .brand{font-weight:800;letter-spacing:.02em;font-size:18px}
+    .brand small{display:block;font-size:12px;font-weight:500;opacity:.85}
+    .top-actions{display:flex;gap:8px;align-items:center}
+    select,button,input,textarea{font:inherit}
+    .top select{background:#fff;color:#173323;border:0;border-radius:9px;padding:8px}
+    main{max-width:900px;margin:26px auto;padding:0 14px 40px}
+    .intro{margin:0 0 18px}
+    .intro h1{margin:0 0 4px;font-size:25px}
+    .intro p{margin:0;color:var(--muted)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0;box-shadow:0 8px 28px #123b2908}
+    .card h2{font-size:19px;margin:0 0 14px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field{margin:0 0 13px}
+    label{display:block;font-weight:650;font-size:14px;margin:0 0 6px}
+    input,textarea{width:100%;border:1px solid #cbd8ce;border-radius:10px;padding:12px;background:#fff;color:var(--ink);min-height:46px}
+    textarea{min-height:100px;resize:vertical}
+    input:focus,textarea:focus,select:focus{outline:3px solid #087a4322;border-color:var(--green)}
+    button,.button-link{border:0;border-radius:10px;background:var(--green);color:#fff;padding:12px 16px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:44px}
+    button:hover,.button-link:hover{background:var(--green-dark)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    button.secondary{background:#edf4ef;color:#17442a;border:1px solid var(--line)}
+    button.google{background:#fff;color:#26352b;border:1px solid #cbd8ce}
+    button.danger{background:#fff1f0;color:var(--red);border:1px solid #ffd5d2}
+    .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+    .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+    .status{padding:11px 13px;border-radius:10px;background:#f0f5f1;color:#31513b;min-height:44px;margin:12px 0 0;overflow-wrap:anywhere}
+    .status.error{background:#fff1f0;color:var(--red)}
+    .hidden{display:none!important}
+    .seller-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .seller-name{font-weight:800}
+    .state-pill{display:inline-block;border-radius:99px;background:#edf4ef;padding:4px 10px;font-size:12px;color:#17442a}
+    .products{display:grid;gap:10px;margin-top:14px}
+    .product{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:12px}
+    .product strong{display:block}
+    .product small{color:var(--muted)}
+    .empty{color:var(--muted);padding:12px 0}
+    .footer{text-align:center;color:var(--muted);font-size:12px;margin-top:24px}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}.card{padding:16px}.intro h1{font-size:22px}.actions button{width:100%}.top-inner{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">AL MAJID NIGERIA MARKETPLACE<small data-i18n="brandSub">بوابة البائعين</small></div>
+      <div class="top-actions">
+        <select id="languageSelect" aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="ha">Hausa</option>
+        </select>
+        <a class="button-link" href="https://kano234.com/" data-i18n="marketLink">العودة إلى السوق</a>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="intro">
+      <h1 data-i18n="title">بوابة البائعين</h1>
+      <p data-i18n="intro">سجّل دخولك أو أنشئ حساب بائع، ثم أرسل منتجاتك للمراجعة قبل ظهورها في السوق.</p>
+    </section>
+
+    <section class="card" id="authCard">
+      <h2 data-i18n="authTitle">تسجيل البائع أو الدخول</h2>
+      <div class="field">
+        <label for="storeName" data-i18n="storeName">اسم المتجر أو البائع</label>
+        <input id="storeName" type="text" maxlength="80" autocomplete="organization" data-i18n-placeholder="storeNamePlaceholder" placeholder="اكتب اسم المتجر">
+      </div>
+      <div class="field">
+        <label for="email" data-i18n="email">البريد الإلكتروني</label>
+        <input id="email" type="email" maxlength="254" autocomplete="email" required placeholder="name@example.com">
+      </div>
+      <div class="actions">
+        <button id="registerEmailButton" type="button" data-i18n="registerEmail">إنشاء حساب بائع وإرسال رمز</button>
+        <button id="loginEmailButton" class="secondary" type="button" data-i18n="loginEmail">دخول البائع برمز البريد</button>
+        <button id="googleButton" class="google" type="button" data-i18n="google">المتابعة باستخدام Google</button>
+      </div>
+      <p class="hint" data-i18n="emailHint">سنرسل رمز تحقق إلى بريدك. لا نستخدم WhatsApp أو SMS لتسجيل الدخول.</p>
+      <div id="otpArea" class="hidden" style="margin-top:16px">
+        <div class="field">
+          <label for="otpCode" data-i18n="otpLabel">رمز التحقق المرسل إلى بريدك</label>
+          <input id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456">
+        </div>
+        <button id="verifyOtpButton" type="button" data-i18n="verifyOtp">تأكيد الرمز والدخول</button>
+      </div>
+      <p id="authStatus" class="status" role="status" aria-live="polite" data-i18n="ready">أدخل بياناتك للمتابعة.</p>
+    </section>
+
+    <section id="dashboard" class="card hidden">
+      <div class="seller-head">
+        <div>
+          <div class="seller-name" id="sellerDisplayName"></div>
+          <div class="hint" id="sellerStatus"></div>
+        </div>
+        <button id="signOutButton" class="danger" type="button" data-i18n="signOut">تسجيل الخروج</button>
+      </div>
+      <div id="productFormArea" class="hidden">
+        <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+        <h2 data-i18n="addProductTitle">إضافة منتج جديد</h2>
+        <form id="sellerProductForm">
+          <div class="field">
+            <label for="productTitle" data-i18n="productTitle">اسم المنتج</label>
+            <input id="productTitle" type="text" maxlength="160" required>
+          </div>
+          <div class="field">
+            <label for="productDescription" data-i18n="description">وصف المنتج</label>
+            <textarea id="productDescription" maxlength="3000"></textarea>
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label for="productPrice" data-i18n="price">السعر (نايرا NGN)</label>
+              <input id="productPrice" type="number" min="1" step="0.01" inputmode="decimal" required>
+            </div>
+            <div class="field">
+              <label for="productImage" data-i18n="image">صورة المنتج (اختياري)</label>
+              <input id="productImage" type="file" accept="image/jpeg,image/png,image/webp">
+            </div>
+          </div>
+          <p class="hint" data-i18n="imageHint">JPG أو PNG أو WEBP، بحد أقصى 5 ميغابايت.</p>
+          <div class="actions"><button id="submitProductButton" type="submit" data-i18n="submitProduct">إرسال المنتج للمراجعة</button></div>
+        </form>
+        <p id="productStatus" class="status" role="status" aria-live="polite"></p>
+      </div>
+      <div style="margin-top:20px">
+        <h2 data-i18n="myProducts">منتجاتي</h2>
+        <div id="productList" class="products"><p class="empty" data-i18n="loading">جارٍ التحميل...</p></div>
+      </div>
+    </section>
+    <p class="footer" data-i18n="footer">تُراجع المنتجات قبل نشرها. لن يظهر المنتج في السوق إلا بعد موافقة الإدارة.</p>
+  </main>
+  <script src="seller-portal.js"></script>
+</body>
+</html>
