@@ -732,7 +732,7 @@
           storageKey: "am-customer-auth",
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: false
+          detectSessionInUrl: true
         }
       }
     );
@@ -1373,6 +1373,8 @@
       const client = initializeCustomerClient();
       const { data, error } = await client.auth.getSession();
       if (error || !data?.session) return;
+      const authPanel = getElement("customerAuthPanel");
+      if (authPanel) authPanel.classList.add("hidden");
       const panel = getElement("customerChatPanel");
       if (panel) panel.classList.remove("hidden");
       await loadCustomerProjects();
@@ -1385,13 +1387,47 @@
 
   async function customerSignIn() {
     const email = getElement("customerEmail")?.value.trim();
-    const password = getElement("customerPassword")?.value;
-    if (!email || !password) return setStatus("customerStatus", "أدخل البريد وكلمة المرور.", true);
-    const { error } = await initializeCustomerClient().auth.signInWithPassword({ email, password });
-    if (error) return setStatus("customerStatus", "تعذر تسجيل الدخول: " + error.message, true);
-    setStatus("customerStatus", "تم تسجيل دخول العميل.");
+    if (!email) return setStatus("customerStatus", "أدخل بريدك الإلكتروني أولاً.", true);
+    const { error } = await initializeCustomerClient().auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) return setStatus("customerStatus", "تعذر إرسال رمز الدخول: " + error.message, true);
+    const otpPanel = getElement("customerOtpPanel");
+    if (otpPanel) otpPanel.classList.remove("hidden");
+    setStatus("customerStatus", "أرسلنا رمز الدخول إلى بريدك. أدخل الرمز المكوّن من 6 أرقام هنا.");
+  }
+
+  async function customerVerifyOtp() {
+    const email = getElement("customerEmail")?.value.trim();
+    const token = getElement("customerOtp")?.value.trim();
+    if (!email || !/^\d{6}$/.test(token || "")) {
+      return setStatus("customerStatus", "أدخل البريد ورمز التحقق المكوّن من 6 أرقام.", true);
+    }
+    const { error } = await initializeCustomerClient().auth.verifyOtp({ email, token, type: "email" });
+    if (error) return setStatus("customerStatus", "رمز الدخول غير صحيح أو انتهت صلاحيته: " + error.message, true);
+    await completeCustomerSignIn();
+  }
+
+  async function customerSignInWithGoogle() {
+    const { error } = await initializeCustomerClient().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    });
+    if (error) setStatus("customerStatus", "تعذر تسجيل الدخول باستخدام Google: " + error.message, true);
+  }
+
+  async function completeCustomerSignIn() {
+    const authPanel = getElement("customerAuthPanel");
+    if (authPanel) authPanel.classList.add("hidden");
+    const otpPanel = getElement("customerOtpPanel");
+    if (otpPanel) otpPanel.classList.add("hidden");
     const panel = getElement("customerChatPanel");
     if (panel) panel.classList.remove("hidden");
+    setStatus("customerStatus", "تم تسجيل دخول العميل.");
     await loadCustomerProjects();
     await loadCustomerConversations();
     startCustomerChatPolling();
@@ -1404,8 +1440,8 @@
     const select = getElement("customerProjectSelect");
     if (!select) return;
     select.innerHTML = '<option value="">اختر مشروعك...</option>' +
-      (data || []).map(p => '<option value="' + escapeHtml(p.project_id) + '">' +
-        escapeHtml(p.project_title) + " — " +
+      (data || []).map(p => '<option value="' + escapeHtml(p.id) + '">' +
+        escapeHtml(p.title) + " — " +
         (p.approved_amount == null ? "بانتظار تحديد المبلغ" :
           escapeHtml(p.approved_amount) + " " + escapeHtml(p.currency)) + "</option>").join("");
   }
@@ -1457,6 +1493,10 @@
     customerChatPoller = null;
     const panel = getElement("customerChatPanel");
     if (panel) panel.classList.add("hidden");
+    const authPanel = getElement("customerAuthPanel");
+    if (authPanel) authPanel.classList.remove("hidden");
+    const otpPanel = getElement("customerOtpPanel");
+    if (otpPanel) otpPanel.classList.add("hidden");
     const messages = getElement("customerChatMessages");
     if (messages) messages.innerHTML = '<div class="chat-empty">سجّل الدخول لعرض محادثاتك.</div>';
     setStatus("customerStatus", error ? "تعذر تسجيل الخروج." : "تم تسجيل خروج العميل.", !!error);
@@ -1512,6 +1552,8 @@
   window.openReceipt = openReceipt;
   window.verifyPayment = verifyPayment;
   window.customerSignIn = customerSignIn;
+  window.customerVerifyOtp = customerVerifyOtp;
+  window.customerSignInWithGoogle = customerSignInWithGoogle;
   window.loadCustomerProjects = loadCustomerProjects;
   window.requestCustomerPayment = requestCustomerPayment;
   window.uploadCustomerReceipt = uploadCustomerReceipt;
@@ -1541,14 +1583,14 @@
   // التحقق من حالة تحميل الصفحة لضمان عمل استعادة الجلسة بكفاءة
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      restoreAdminSession();
-      restoreCustomerSession();
+      if (getElement("adminLoginSection") || getElement("dashboardSection")) restoreAdminSession();
+      if (getElement("customerChatPanel")) restoreCustomerSession();
       bindVendorProductForm();
       bindSafeDashboardActions();
     });
   } else {
-    restoreAdminSession();
-    restoreCustomerSession();
+    if (getElement("adminLoginSection") || getElement("dashboardSection")) restoreAdminSession();
+    if (getElement("customerChatPanel")) restoreCustomerSession();
     bindVendorProductForm();
       bindSafeDashboardActions();
   }

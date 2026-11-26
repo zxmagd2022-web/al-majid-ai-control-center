@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#08783a">
+  <title>بوابة العميل | وكالة الماجد</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--green:#08783a;--deep:#123b29;--muted:#64756b;--line:#dce8df;--bg:#f3f8f4;--white:#fff}
+    *{box-sizing:border-box}
+    body{margin:0;padding:18px;background:var(--bg);color:var(--deep);font-family:Tahoma,Arial,sans-serif;line-height:1.7}
+    main{width:min(100%,760px);margin:22px auto}
+    header{text-align:center;margin-bottom:20px}
+    h1{font-size:25px;margin:0 0 5px}
+    header p,.muted{color:var(--muted);font-size:14px}
+    .card{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 8px 25px #123b2909}
+    h2{font-size:19px;margin:0 0 14px}
+    label{display:block;font-size:14px;margin:12px 0 6px}
+    input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--deep)}
+    textarea{min-height:95px;resize:vertical}
+    button{border:0;border-radius:10px;padding:12px 16px;background:var(--green);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+    button.secondary{background:#eef5ef;color:var(--deep);border:1px solid var(--line)}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+    .actions button{flex:1}
+    .hidden{display:none!important}
+    #customerStatus,#customerChatStatus{font-size:13px;margin-top:12px;min-height:22px}
+    .chat-messages{min-height:220px;max-height:440px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fbf8}
+    .chat-message{max-width:92%;margin:8px 0;padding:10px 12px;border-radius:11px;background:#fff;border:1px solid var(--line);overflow-wrap:anywhere}
+    .chat-message.chat-customer{margin-right:auto;border-color:#9ac8a7}
+    .chat-message.chat-agency,.chat-message.chat-ai,.chat-message.chat-human{margin-left:auto;border-color:#73b58a}
+    .chat-message small{display:block;color:var(--muted);margin-top:6px}
+    .chat-message img,.chat-message video{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-top:8px}
+    .chat-message audio{display:block;width:100%;margin-top:8px}
+    .chat-empty{text-align:center;color:var(--muted);padding:24px 8px}
+    footer{text-align:center;color:#87958c;font-size:12px;margin:25px 0}
+    @media(max-width:520px){body{padding:12px}.card{padding:15px}.actions{flex-direction:column}.actions button{width:100%}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>بوابة عملاء وكالة الماجد</h1>
+      <p>تابع مشاريعك وتواصل مع فريق الوكالة بأمان.</p>
+    </header>
+
+    <section id="customerAuthPanel" class="card">
+      <h2>دخول العميل</h2>
+      <p class="muted">استخدم البريد الإلكتروني المسجل لدى الوكالة، أو تابع باستخدام Google.</p>
+      <label for="customerEmail">البريد الإلكتروني</label>
+      <input id="customerEmail" type="email" autocomplete="email" placeholder="name@example.com">
+      <div class="actions">
+        <button type="button" onclick="customerSignIn()">إرسال رابط / رمز الدخول</button>
+        <button type="button" class="secondary" onclick="customerSignInWithGoogle()">المتابعة باستخدام Google</button>
+      </div>
+      <div id="customerOtpPanel" class="hidden">
+        <label for="customerOtp">رمز التحقق المكوّن من 6 أرقام (إذا وصلك رمز)</label>
+        <input id="customerOtp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <div class="actions">
+          <button type="button" onclick="customerVerifyOtp()">تحقق من الرمز</button>
+        </div>
+      </div>
+      <p id="customerStatus" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="customerChatPanel" class="hidden">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 style="margin:0">مشاريعي ومحادثاتي</h2>
+          <button type="button" class="secondary" onclick="customerSignOut()">تسجيل الخروج</button>
+        </div>
+        <label for="customerProjectSelect">المشروع</label>
+        <select id="customerProjectSelect">
+          <option value="">جارٍ تحميل المشاريع...</option>
+        </select>
+        <label for="customerChatLanguage">لغة المحادثة</label>
+        <select id="customerChatLanguage">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="ha">Hausa</option>
+        </select>
+        <div class="actions">
+          <button type="button" onclick="startCustomerConversation()">بدء محادثة جديدة</button>
+          <button type="button" class="secondary" onclick="loadCustomerProjects()">تحديث المشاريع</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>محادثاتك</h2>
+        <label for="customerConversationSelect">اختر المحادثة</label>
+        <select id="customerConversationSelect" onchange="loadCustomerConversationMessages()">
+          <option value="">لا توجد محادثات بعد</option>
+        </select>
+        <div id="customerChatMessages" class="chat-messages" aria-live="polite">
+          <div class="chat-empty">اختر محادثة لعرض الرسائل.</div>
+        </div>
+        <label for="customerChatText">رسالتك</label>
+        <textarea id="customerChatText" maxlength="8000" placeholder="اكتب رسالتك لفريق الوكالة..."></textarea>
+        <label for="customerChatFile">إرفاق صورة أو فيديو أو صوت أو PDF (حتى 50MB)</label>
+        <input id="customerChatFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/webm,audio/ogg,audio/wav,application/pdf">
+        <div class="actions">
+          <button type="button" onclick="sendCustomerChatMessage()">إرسال الرسالة</button>
+          <button type="button" id="customerVoiceButton" class="secondary" onclick="toggleCustomerVoiceRecording()">تسجيل رسالة صوتية</button>
+        </div>
+        <p id="customerChatStatus" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <footer>AL AL MAJID MARKETING AGENCY</footer>
+  </main>
+  <script src="frontend.js?v=customer-portal-otp-1"></script>
+</body>
+</html>
