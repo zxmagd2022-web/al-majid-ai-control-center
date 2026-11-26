@@ -667,18 +667,50 @@
     if (!list) return;
     const { data, error } = await client.from("am_finance_transactions")
       .select("id,type,category,amount,currency,transaction_date,description,reference")
-      .order("transaction_date",{ascending:false}).order("created_at",{ascending:false});
+      .order("transaction_date", { ascending: false })
+      .order("created_at", { ascending: false });
     if (error) {
       list.textContent = "تعذر تحميل السجل المالي: " + error.message;
       return;
     }
-    if (!data?.length) { list.textContent = "لا توجد حركات مالية مسجلة بعد."; return; }
-    list.innerHTML = data.map(item =>
-      '<div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px">' +
-      '<strong>' + (item.type === "income" ? "إيراد" : "مصروف") + ' — ' + escapeHtml(item.amount) + ' ' + escapeHtml(item.currency) + '</strong>' +
-      '<div>' + escapeHtml(item.category || "بدون تصنيف") + ' · ' + escapeHtml(item.transaction_date) + '</div>' +
-      '<div style="color:var(--text-muted)">' + escapeHtml(item.description || "") + (item.reference ? " · " + escapeHtml(item.reference) : "") + '</div></div>'
-    ).join("");
+    if (!data?.length) {
+      list.textContent = "لا توجد حركات مالية مسجلة بعد.";
+      return;
+    }
+
+    // اربط الإيصالات بالحركات في استعلام واحد، مع إبقاء الملفات في التخزين الخاص.
+    const transactionIds = data.map(item => item.id);
+    const { data: receipts, error: receiptsError } = await client
+      .from("am_transaction_receipts")
+      .select("transaction_id,storage_path,file_name")
+      .in("transaction_id", transactionIds);
+    if (receiptsError) {
+      console.warn("Finance receipts load failed:", receiptsError);
+    }
+    const receiptsByTransaction = new Map();
+    (receipts || []).forEach(receipt => {
+      const current = receiptsByTransaction.get(receipt.transaction_id) || [];
+      current.push(receipt);
+      receiptsByTransaction.set(receipt.transaction_id, current);
+    });
+
+    list.innerHTML = data.map(item => {
+      const attachedReceipts = receiptsByTransaction.get(item.id) || [];
+      const receiptLinks = attachedReceipts.map(receipt =>
+        '<button type="button" class="secondary" style="margin:6px 6px 0 0" onclick="openReceipt(\'' +
+        escapeHtml(receipt.storage_path) + '\')">عرض الإيصال: ' +
+        escapeHtml(receipt.file_name || "ملف مرفق") + '</button>'
+      ).join("");
+      return '<div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px">' +
+        '<strong>' + (item.type === "income" ? "إيراد" : "مصروف") + ' — ' +
+        escapeHtml(item.amount) + ' ' + escapeHtml(item.currency) + '</strong>' +
+        '<div>' + escapeHtml(item.category || "بدون تصنيف") + ' · ' +
+        escapeHtml(item.transaction_date) + '</div>' +
+        '<div style="color:var(--text-muted)">' + escapeHtml(item.description || "") +
+        (item.reference ? " · " + escapeHtml(item.reference) : "") + '</div>' +
+        (receiptLinks || '<div style="color:var(--text-muted);font-size:12px;margin-top:5px">لا يوجد إيصال مرفق.</div>') +
+        '</div>';
+    }).join("");
   }
 
 
