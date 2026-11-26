@@ -1,17 +1,30 @@
 # AL MAJID AI CONTROL CENTER — Deployment
 
-The seller portal is served as a static page at `/seller-portal.html`.
+## Cloudflare Pages
 
-The Cloudflare Pages project is connected to this repository and deploys the `main` branch from the repository root (`.`) without a build command. Changes merged into `main` should trigger a production deployment.
+The Cloudflare Pages project `al-majid-ai-control-center` serves this repository from the `main` branch and repository root (`.`). Keep the build command empty and the build output directory set to `.`.
 
-Seller sign-in uses email OTP and Google OAuth. Product submissions are stored in the AL MAJID Nigeria Marketplace Supabase project for admin review.
+Do not use the separate Workers service's `exit 0` build command or a bare `npx wrangler` deploy command for this Pages site.
 
-## Static deployment verification
+## Application pages
 
-This repository is served by the existing Cloudflare Pages project `al-majid-ai-control-center`. Keep the Pages build command empty and the build output directory set to `.`. Do not use the separate Workers service's `exit 0` build command or bare `npx wrangler` deploy command for this Pages site.
+- Public landing page: `/` (`index.html`)
+- Unified administration dashboard: `/admin-control.html`
+- Legacy administration URL: `/admin.html` (redirects to `/admin-control.html`)
+- Seller portal: `/seller-portal.html`
+- Staff applications: `/staff-requests.html`
+- System diagnostics: `/system-check.html`
 
-The agency administration dashboard is served at `/admin.html` (the root `/` is the public marketplace landing page). The admin page loads the Supabase JavaScript client and `frontend.js`; verify the production deployment at `/admin.html` after each Pages release.
+The unified dashboard loads the Supabase JavaScript client, the versioned `frontend.js` asset, and `market-admin.js`. The seller portal and staff applications page load their own page-specific scripts.
 
 ## Production release integrity check
 
-A successful GitHub workflow run is not proof that Cloudflare Pages production has updated. After every release, verify the actual production asset at `/frontend.js` and confirm that it contains `loadDashboardData` and the current database-backed dashboard functions. Also verify that `/admin.html` references the matching versioned frontend asset. If production still serves the legacy frontend, investigate the Pages Git integration and production deployment rather than changing database records or weakening access policies.
+A successful GitHub commit or workflow run is not proof that Cloudflare Pages production has updated. After each release, verify the actual production pages and assets:
+
+1. Open `/admin-control.html` and confirm the unified dashboard loads.
+2. Confirm `/frontend.js` is the expected current frontend asset and includes the database-backed dashboard functions.
+3. Confirm `/market-admin.js` loads and the marketplace administration tab works.
+4. Open `/admin.html` and confirm it redirects to `/admin-control.html`.
+5. Verify the seller portal, staff applications page, and system diagnostics separately.
+
+If production still serves an older asset, investigate the Pages Git integration and production deployment. Do not change database records or weaken access policies to work around a stale deployment.
