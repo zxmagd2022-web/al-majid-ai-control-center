@@ -697,8 +697,8 @@
     list.innerHTML = data.map(item => {
       const attachedReceipts = receiptsByTransaction.get(item.id) || [];
       const receiptLinks = attachedReceipts.map(receipt =>
-        '<button type="button" class="secondary" style="margin:6px 6px 0 0" onclick="openReceipt(\'' +
-        escapeHtml(receipt.storage_path) + '\')">عرض الإيصال: ' +
+        '<button type="button" class="secondary" data-action="open-receipt" data-receipt-path="' +
+        escapeHtml(receipt.storage_path) + '" style="margin:6px 6px 0 0">عرض الإيصال: ' +
         escapeHtml(receipt.file_name || "ملف مرفق") + '</button>'
       ).join("");
       return '<div style="padding:12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px">' +
@@ -823,7 +823,8 @@
         '</div><label style="margin-top:8px">المبلغ المعتمد للعميل (NGN)</label>' +
         '<input type="number" min="1" step="0.01" id="approved-' + escapeHtml(p.id) +
         '" value="' + (p.approved_amount == null ? "" : escapeHtml(p.approved_amount)) + '" placeholder="حدّد المبلغ بعد الاتفاق">' +
-        '<button style="margin-top:8px" onclick="setApprovedAmount(\'' + escapeHtml(p.id) + '\')">حفظ المبلغ المعتمد</button></div>'
+        '<button type="button" data-action="set-approved-amount" data-project-id="' + escapeHtml(p.id) +
+        '" style="margin-top:8px">حفظ المبلغ المعتمد</button></div>'
       ).join("");
       const stat = getElement("statProjects");
       if (stat) stat.textContent = String((projects || []).length);
@@ -1473,6 +1474,24 @@
     }
   }
 
+  // Bind data-driven actions without inline JavaScript handlers.
+  function bindSafeDashboardActions() {
+    const root = getElement("dashboardSection");
+    if (!root || root.dataset.safeActionsBound === "true") return;
+    root.addEventListener("click", event => {
+      const button = event.target.closest("button[data-action]");
+      if (!button || !root.contains(button)) return;
+      if (button.dataset.action === "open-receipt") {
+        const path = button.dataset.receiptPath;
+        if (path) openReceipt(path);
+      } else if (button.dataset.action === "set-approved-amount") {
+        const projectId = button.dataset.projectId;
+        if (projectId) setApprovedAmount(projectId);
+      }
+    });
+    root.dataset.safeActionsBound = "true";
+  }
+
   // ربط الدوال بأزرار HTML التي تستخدم onclick.
   window.loginAdmin = loginAdmin;
   window.loginAdminWithGoogle = loginAdminWithGoogle;
@@ -1516,11 +1535,13 @@
       restoreAdminSession();
       restoreCustomerSession();
       bindVendorProductForm();
+      bindSafeDashboardActions();
     });
   } else {
     restoreAdminSession();
     restoreCustomerSession();
     bindVendorProductForm();
+      bindSafeDashboardActions();
   }
 
 })();
