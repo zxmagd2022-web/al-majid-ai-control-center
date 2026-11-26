@@ -1,3 +1,4 @@
+/* Production refresh marker: restore current dashboard data loader on Cloudflare Pages. 2026-11-26 */
 /* AL MAJID AI CONTROL CENTER
    Frontend Authentication - Safer Session Handling
    This file does not replace the Supabase Edge Function.
