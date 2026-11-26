@@ -1181,7 +1181,9 @@
   async function startCustomerConversation() {
     const projectId = getElement("customerProjectSelect")?.value;
     const language = getElement("customerChatLanguage")?.value || "ar";
-    if (!projectId) return setStatus("customerChatStatus", "اختر مشروعك أولاً لربط المحادثة به.", true);
+    if (!projectId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId)) {
+      return setStatus("customerChatStatus", "لا يمكن بدء المحادثة قبل تحميل مشروع مرتبط وصالح. حدّث المشاريع أو تواصل مع الوكالة.", true);
+    }
     const { data, error } = await initializeCustomerClient().rpc("customer_start_conversation", {
       p_project_id: projectId,
       p_language: language
@@ -1373,15 +1375,10 @@
       const client = initializeCustomerClient();
       const { data, error } = await client.auth.getSession();
       if (error || !data?.session) return;
-      const authPanel = getElement("customerAuthPanel");
-      if (authPanel) authPanel.classList.add("hidden");
-      const panel = getElement("customerChatPanel");
-      if (panel) panel.classList.remove("hidden");
-      await loadCustomerProjects();
-      await loadCustomerConversations();
-      startCustomerChatPolling();
+      await completeCustomerSignIn();
     } catch (error) {
       console.warn("Customer session restoration failed:", error);
+      setStatus("customerStatus", "تعذر استعادة جلسة العميل. حدّث الصفحة أو سجّل الدخول مجدداً.", true);
     }
   }
 
@@ -1427,23 +1424,52 @@
     if (otpPanel) otpPanel.classList.add("hidden");
     const panel = getElement("customerChatPanel");
     if (panel) panel.classList.remove("hidden");
-    setStatus("customerStatus", "تم تسجيل دخول العميل.");
     await loadCustomerProjects();
     await loadCustomerConversations();
     startCustomerChatPolling();
   }
 
+  function normalizeCustomerProjects(rows) {
+    return (Array.isArray(rows) ? rows : []).map(row => ({
+      id: row?.id ?? row?.project_id ?? null,
+      title: row?.title ?? row?.project_title ?? row?.name ?? "مشروع بدون عنوان",
+      approved_amount: row?.approved_amount ?? null,
+      currency: row?.currency ?? ""
+    })).filter(project =>
+      typeof project.id === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(project.id)
+    );
+  }
+
   async function loadCustomerProjects() {
+    const select = getElement("customerProjectSelect");
+    if (select) select.innerHTML = '<option value="">جارٍ تحميل المشاريع...</option>';
     const client = initializeCustomerClient();
     const { data, error } = await client.rpc("customer_list_projects");
-    if (error) return setStatus("customerStatus", "تعذر تحميل مشاريع هذا الحساب: " + error.message, true);
-    const select = getElement("customerProjectSelect");
-    if (!select) return;
+    if (error) {
+      if (select) select.innerHTML = '<option value="">تعذر تحميل المشاريع</option>';
+      setStatus("customerStatus", "تعذر تحميل مشاريع هذا الحساب: " + error.message, true);
+      return false;
+    }
+    if (!select) return false;
+
+    const projects = normalizeCustomerProjects(data);
+    if (!projects.length) {
+      select.innerHTML = '<option value="">لا توجد مشاريع مرتبطة بهذا الحساب</option>';
+      setStatus("customerStatus", "تم تسجيل الدخول، لكن لا توجد مشاريع مرتبطة بهذا الحساب حالياً. اطلب من الوكالة ربط حسابك بسجل العميل وإضافة مشروعك.", true);
+      return false;
+    }
+
     select.innerHTML = '<option value="">اختر مشروعك...</option>' +
-      (data || []).map(p => '<option value="' + escapeHtml(p.id) + '">' +
-        escapeHtml(p.title) + " — " +
-        (p.approved_amount == null ? "بانتظار تحديد المبلغ" :
-          escapeHtml(p.approved_amount) + " " + escapeHtml(p.currency)) + "</option>").join("");
+      projects.map(project => {
+        const amountLabel = project.approved_amount == null
+          ? "بانتظار تحديد المبلغ"
+          : escapeHtml(project.approved_amount) + " " + escapeHtml(project.currency);
+        return '<option value="' + escapeHtml(project.id) + '">' +
+          escapeHtml(project.title) + " — " + amountLabel + "</option>";
+      }).join("");
+    setStatus("customerStatus", "تم تحميل " + projects.length + " مشروع مرتبط بحسابك.");
+    return true;
   }
 
   async function requestCustomerPayment() {
