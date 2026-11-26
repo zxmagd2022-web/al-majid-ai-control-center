@@ -1008,7 +1008,7 @@
         escapeHtml(p.receipt_storage_path) + '">عرض الإيصال</button></div>' :
         '<div style="color:var(--text-muted)">لم يُرفق إيصال بعد</div>') +
       (p.status === "submitted" ? '<button type="button" data-action="verify-payment" data-payment-id="' +
-        escapeHtml(p.id) + '" style="margin-top:8px">اعتماد بعد التحقق البنكي الفعلي</button>' : "") +
+        escapeHtml(p.id) + '" style="margin-top:8px">اعتماد بعد التحقق البنكي الفعلي</button>' : "")
     ).join("");
   }
 
