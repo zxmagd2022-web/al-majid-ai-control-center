@@ -766,6 +766,8 @@
     if (empError) {
       console.error("AI employees load failed:", empError);
       loadErrors.push("الموظفون: " + (empError.message || "تعذر القراءة"));
+      const stat = getElement("statEmployees");
+      if (stat) stat.textContent = "خطأ";
     } else {
       const list = getElement("employeesList");
       if (list) list.innerHTML = (employees || []).map(e =>
@@ -786,6 +788,8 @@
     if (clientError) {
       console.error("Clients load failed:", clientError);
       loadErrors.push("العملاء: " + (clientError.message || "تعذر القراءة"));
+      const stat = getElement("statClients");
+      if (stat) stat.textContent = "خطأ";
     }
     else {
       const list = getElement("clientsList");
@@ -813,6 +817,8 @@
     if (projectError) {
       console.error("Projects load failed:", projectError);
       loadErrors.push("المشاريع: " + (projectError.message || "تعذر القراءة"));
+      const stat = getElement("statProjects");
+      if (stat) stat.textContent = "خطأ";
     }
     else {
       const list = getElement("projectsList");
