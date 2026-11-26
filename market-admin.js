@@ -2,7 +2,7 @@
   "use strict";
 
   const SUPABASE_URL = "https://cafvkonbubrqsabsywry.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_QvFdOACJ5_BBnhjp3Pnm0g_vG_d1iR6";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
   const AUTH_STORAGE_KEY = "sb-cafvkonbubrqsabsywry-auth-token";
   let client = null;
   let sellersCache = [];
