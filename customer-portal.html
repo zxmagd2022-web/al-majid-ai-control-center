@@ -70,6 +70,12 @@
           <h2 style="margin:0">مشاريعي ومحادثاتي</h2>
           <button type="button" class="secondary" onclick="customerSignOut()">تسجيل الخروج</button>
         </div>
+        <div class="card" style="margin:14px 0;padding:12px;border:1px dashed var(--primary)">
+          <strong>معرّف حسابك لربطه بسجل العميل</strong>
+          <p style="font-size:13px;color:var(--text-muted)">انسخ هذا المعرّف وأرسله إلى الوكالة. لن تتمكن الوكالة من ربط حسابك بدونه.</p>
+          <input id="customerProfileIdDisplay" type="text" readonly dir="ltr" autocomplete="off" aria-label="معرّف حساب العميل">
+          <button type="button" class="secondary" onclick="copyCustomerProfileId()">نسخ معرّف الحساب</button>
+        </div>
         <label for="customerProjectSelect">المشروع</label>
         <select id="customerProjectSelect">
           <option value="">جارٍ تحميل المشاريع...</option>
@@ -108,6 +114,6 @@
     </section>
     <footer>AL AL MAJID MARKETING AGENCY</footer>
   </main>
-  <script src="frontend.js?v=customer-portal-otp-1"></script>
+  <script src="frontend.js?v=customer-profile-link-2"></script>
 </body>
 </html>
