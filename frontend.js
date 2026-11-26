@@ -997,12 +997,11 @@
       escapeHtml(p.amount) + " " + escapeHtml(p.currency) + " · " + escapeHtml(p.status) +
       '</div><small style="color:var(--text-muted)">العميل: ' + escapeHtml(p.payer_id) +
       " · المشروع: " + escapeHtml(p.project_id || "غير مرتبط") + '</small>' +
-      (p.receipt_storage_path ? '<div><button class="secondary" onclick="openReceipt(\'' +
-        escapeHtml(p.receipt_storage_path) + '\')">عرض الإيصال</button></div>' :
+      (p.receipt_storage_path ? '<div><button type="button" class="secondary" data-action="open-receipt" data-receipt-path="' +
+        escapeHtml(p.receipt_storage_path) + '">عرض الإيصال</button></div>' :
         '<div style="color:var(--text-muted)">لم يُرفق إيصال بعد</div>') +
-      (p.status === "submitted" ? '<button style="margin-top:8px" onclick="verifyPayment(\'' +
-        escapeHtml(p.id) + '\')">اعتماد بعد التحقق البنكي الفعلي</button>' : "") +
-      "</div>"
+      (p.status === "submitted" ? '<button type="button" data-action="verify-payment" data-payment-id="' +
+        escapeHtml(p.id) + '" style="margin-top:8px">اعتماد بعد التحقق البنكي الفعلي</button>' : "") +
     ).join("");
   }
 
@@ -1487,6 +1486,9 @@
       } else if (button.dataset.action === "set-approved-amount") {
         const projectId = button.dataset.projectId;
         if (projectId) setApprovedAmount(projectId);
+      } else if (button.dataset.action === "verify-payment") {
+        const paymentId = button.dataset.paymentId;
+        if (paymentId) verifyPayment(paymentId);
       }
     });
     root.dataset.safeActionsBound = "true";
