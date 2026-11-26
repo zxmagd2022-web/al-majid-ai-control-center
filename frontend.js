@@ -721,12 +721,19 @@
 
   async function loadDashboardData() {
     const client = initializeSupabase();
+    const loadErrors = [];
+    const statusEl = getElement("dashboardDataStatus");
+    if (statusEl) {
+      statusEl.textContent = "جارٍ تحميل بيانات لوحة التحكم...";
+      statusEl.style.color = "var(--text-muted)";
+    }
     const { data: employees, error: empError } = await client
       .from("am_ai_employees")
       .select("id,code,name,department,job_title,status")
       .order("code");
     if (empError) {
       console.error("AI employees load failed:", empError);
+      loadErrors.push("الموظفون: " + (empError.message || "تعذر القراءة"));
     } else {
       const list = getElement("employeesList");
       if (list) list.innerHTML = (employees || []).map(e =>
@@ -744,7 +751,10 @@
       .from("am_clients")
       .select("id,name,business_name,phone,status,client_profile_id")
       .order("created_at", { ascending: false });
-    if (clientError) console.error("Clients load failed:", clientError);
+    if (clientError) {
+      console.error("Clients load failed:", clientError);
+      loadErrors.push("العملاء: " + (clientError.message || "تعذر القراءة"));
+    }
     else {
       const list = getElement("clientsList");
       if (list) list.innerHTML = (clients || []).map(c =>
@@ -768,7 +778,10 @@
       .from("am_projects")
       .select("id,title,status,budget,currency,approved_amount,client_id")
       .order("created_at", { ascending: false });
-    if (projectError) console.error("Projects load failed:", projectError);
+    if (projectError) {
+      console.error("Projects load failed:", projectError);
+      loadErrors.push("المشاريع: " + (projectError.message || "تعذر القراءة"));
+    }
     else {
       const list = getElement("projectsList");
       if (list) list.innerHTML = (projects || []).map(p =>
@@ -798,6 +811,16 @@
         (t.output_data && t.output_data.text ? '<details style="margin-top:6px"><summary>عرض المخرجات</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' +
           escapeHtml(t.output_data.text) + "</pre></details>" : "") + "</div>"
       ).join("");
+    }
+
+    if (statusEl) {
+      if (loadErrors.length) {
+        statusEl.textContent = "تعذر تحميل بعض البيانات: " + loadErrors.join(" | ");
+        statusEl.style.color = "#ef4444";
+      } else {
+        statusEl.textContent = "تم تحميل بيانات لوحة التحكم بنجاح.";
+        statusEl.style.color = "#10b981";
+      }
     }
   }
 
