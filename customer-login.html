@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#08783a">
+  <title>تسجيل دخول العملاء | وكالة الماجد</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--green:#08783a;--deep:#123b29;--muted:#64756b;--line:#dce8df;--bg:#f3f8f4}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;padding:20px;background:linear-gradient(180deg,#e8f5eb,#f7faf8 360px);font-family:Tahoma,Arial,sans-serif;color:var(--deep);display:grid;place-items:center}
+    main{width:min(100%,480px)}
+    header{text-align:center;margin-bottom:20px}
+    .brand{width:58px;height:58px;margin:0 auto 12px;border-radius:17px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;color:var(--green);font-size:27px;font-weight:bold}
+    h1{font-size:25px;margin:0 0 8px}
+    header p{margin:0;color:var(--muted);line-height:1.8;font-size:14px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 12px 35px #123b2910}
+    h2{font-size:19px;margin:0 0 8px}
+    .hint{font-size:13px;color:var(--muted);line-height:1.8;margin:0 0 16px}
+    label{display:block;font-size:14px;margin:12px 0 7px}
+    input{width:100%;padding:13px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--deep);background:#fff}
+    button{width:100%;padding:13px;border:0;border-radius:10px;background:var(--green);color:#fff;font:inherit;font-weight:bold;cursor:pointer;margin-top:12px}
+    button.secondary{background:#fff;color:var(--deep);border:1px solid var(--line)}
+    button:disabled{opacity:.6;cursor:wait}
+    #status{min-height:24px;margin:14px 0 0;font-size:13px;line-height:1.7}
+    .hidden{display:none!important}
+    .back{display:block;text-align:center;margin-top:17px;color:var(--green);font-size:13px;text-decoration:none}
+    footer{text-align:center;color:#87958c;font-size:12px;margin-top:22px}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand" aria-hidden="true">M</div>
+      <h1>بوابة عملاء وكالة الماجد</h1>
+      <p>دخول آمن لمتابعة مشاريعك والتواصل مع فريق الوكالة.</p>
+    </header>
+    <section class="card" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">تسجيل دخول العملاء</h2>
+      <p class="hint">أدخل البريد الإلكتروني المسجل لدى الوكالة. سنرسل لك رمز تحقق أو رابط دخول. لا تحتاج إلى كلمة مرور.</p>
+      <form id="emailForm">
+        <label for="email">البريد الإلكتروني</label>
+        <input id="email" type="email" autocomplete="email" placeholder="name@example.com" required>
+        <button id="sendButton" type="submit">إرسال رابط / رمز الدخول</button>
+      </form>
+      <div id="otpPanel" class="hidden">
+        <label for="otp">رمز التحقق المكوّن من 6 أرقام</label>
+        <input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <button id="verifyButton" type="button">تأكيد الرمز والدخول</button>
+      </div>
+      <button id="googleButton" class="secondary" type="button">المتابعة باستخدام Google</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+    <a class="back" href="index.html">العودة إلى مركز التحكم</a>
+    <footer>AL AL MAJID MARKETING AGENCY</footer>
+  </main>
+  <script>
+    (function(){
+      "use strict";
+      const SUPABASE_URL = "https://cafvkonbubrqsabsywry.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
+      const status = document.getElementById("status");
+      const email = document.getElementById("email");
+      const otp = document.getElementById("otp");
+      const otpPanel = document.getElementById("otpPanel");
+      const sendButton = document.getElementById("sendButton");
+      const verifyButton = document.getElementById("verifyButton");
+      const googleButton = document.getElementById("googleButton");
+      let client;
+      function show(message,error){
+        status.textContent = message;
+        status.style.color = error ? "#b42318" : "#08783a";
+      }
+      function setBusy(button,busy,label){
+        button.disabled = busy;
+        if(label){ if(busy){button.dataset.label=button.textContent;button.textContent=label;} else {button.textContent=button.dataset.label||button.textContent;} }
+      }
+      function getClient(){
+        if(client) return client;
+        if(!window.supabase?.createClient) throw new Error("تعذر تحميل خدمة تسجيل الدخول. حدّث الصفحة وحاول مجدداً.");
+        client = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+          auth:{storageKey:"am-customer-auth",persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+        });
+        return client;
+      }
+      async function enterPortal(){
+        show("تم تسجيل الدخول. جارٍ فتح بوابة المشاريع والمحادثات...");
+        window.location.replace("customer-portal.html");
+      }
+      document.getElementById("emailForm").addEventListener("submit",async function(event){
+        event.preventDefault();
+        const address=email.value.trim();
+        if(!address) return show("أدخل بريدك الإلكتروني.",true);
+        setBusy(sendButton,true,"جارٍ الإرسال...");
+        try{
+          const {error}=await getClient().auth.signInWithOtp({
+            email:address,
+            options:{shouldCreateUser:false,emailRedirectTo:window.location.origin+window.location.pathname.replace(/[^/]*$/,"customer-portal.html")}
+          });
+          if(error) throw error;
+          otpPanel.classList.remove("hidden");
+          show("تم إرسال رسالة الدخول. افتح بريدك، أو أدخل رمز التحقق إذا وصلك.");
+        }catch(error){show("تعذر إرسال الدخول: "+(error.message||"تحقق من البريد والاتصال."),true);}
+        finally{setBusy(sendButton,false,"جارٍ الإرسال...");}
+      });
+      verifyButton.addEventListener("click",async function(){
+        const address=email.value.trim(), token=otp.value.trim();
+        if(!address || !/^\d{6}$/.test(token)) return show("أدخل البريد ورمز التحقق المكوّن من 6 أرقام.",true);
+        setBusy(verifyButton,true,"جارٍ التحقق...");
+        try{
+          const {error}=await getClient().auth.verifyOtp({email:address,token,type:"email"});
+          if(error) throw error;
+          await enterPortal();
+        }catch(error){show("تعذر التحقق من الرمز: "+(error.message||"قد يكون الرمز غير صحيح أو منتهي الصلاحية."),true);}
+        finally{setBusy(verifyButton,false,"جارٍ التحقق...");}
+      });
+      googleButton.addEventListener("click",async function(){
+        setBusy(googleButton,true,"جارٍ التحويل إلى Google...");
+        try{
+          const {error}=await getClient().auth.signInWithOAuth({
+            provider:"google",
+            options:{redirectTo:window.location.origin+window.location.pathname.replace(/[^/]*$/,"customer-portal.html")}
+          });
+          if(error) throw error;
+        }catch(error){show("تعذر بدء الدخول باستخدام Google: "+(error.message||"تحقق من إعدادات Google."),true);setBusy(googleButton,false,"جارٍ التحويل إلى Google...");}
+      });
+      getClient().auth.getSession().then(({data,error})=>{
+        if(error) show("تعذر فحص الجلسة الحالية. يمكنك المحاولة بتسجيل الدخول.",true);
+        else if(data?.session) enterPortal();
+      }).catch(error=>show("تعذر فحص الجلسة: "+error.message,true));
+    })();
+  </script>
+</body>
+</html>
