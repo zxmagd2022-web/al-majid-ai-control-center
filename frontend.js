@@ -1424,9 +1424,53 @@
     if (otpPanel) otpPanel.classList.add("hidden");
     const panel = getElement("customerChatPanel");
     if (panel) panel.classList.remove("hidden");
+    await displayCustomerProfileId();
     await loadCustomerProjects();
     await loadCustomerConversations();
     startCustomerChatPolling();
+  }
+
+  async function displayCustomerProfileId() {
+    const field = getElement("customerProfileIdDisplay");
+    if (!field) return false;
+    try {
+      const { data, error } = await initializeCustomerClient().auth.getUser();
+      const profileId = data?.user?.id;
+      if (error || !profileId) {
+        field.value = "";
+        setStatus("customerStatus", "تعذر قراءة معرّف حسابك. أعد تسجيل الدخول ثم حاول مجدداً.", true);
+        return false;
+      }
+      field.value = profileId;
+      return true;
+    } catch (error) {
+      console.error("Customer profile ID lookup failed:", error);
+      field.value = "";
+      setStatus("customerStatus", "تعذر قراءة معرّف حسابك حالياً.", true);
+      return false;
+    }
+  }
+
+  async function copyCustomerProfileId() {
+    const field = getElement("customerProfileIdDisplay");
+    if (!field?.value) {
+      return setStatus("customerStatus", "سجّل الدخول أولاً لعرض معرّف حسابك.", true);
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(field.value);
+      } else {
+        field.focus();
+        field.select();
+        if (!document.execCommand("copy")) throw new Error("copy command unavailable");
+      }
+      setStatus("customerStatus", "تم نسخ معرّف حسابك. أرسله إلى الوكالة لإكمال ربط حسابك بسجل العميل.");
+    } catch (error) {
+      console.error("Customer profile ID copy failed:", error);
+      field.focus();
+      field.select();
+      setStatus("customerStatus", "تعذر النسخ التلقائي. حدّد المعرّف وانسخه يدوياً.", true);
+    }
   }
 
   function normalizeCustomerProjects(rows) {
@@ -1580,6 +1624,7 @@
   window.customerSignIn = customerSignIn;
   window.customerVerifyOtp = customerVerifyOtp;
   window.customerSignInWithGoogle = customerSignInWithGoogle;
+  window.copyCustomerProfileId = copyCustomerProfileId;
   window.loadCustomerProjects = loadCustomerProjects;
   window.requestCustomerPayment = requestCustomerPayment;
   window.uploadCustomerReceipt = uploadCustomerReceipt;
