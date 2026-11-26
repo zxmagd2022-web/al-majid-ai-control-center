@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>وحدة تحكم المدير | الماجد</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#172235;--line:#2b3b52;--text:#f1f5f9;--muted:#9aa9bd;--blue:#2563eb;--green:#10b981;--red:#ef4444}
+*{box-sizing:border-box}body{margin:0;padding:18px;background:var(--bg);color:var(--text);font:15px/1.65 system-ui, sans-serif}
+main{max-width:760px;margin:auto}header,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:15px}
+h1{font-size:22px;margin:0 0 5px}h2{font-size:18px;margin:0 0 12px}p{color:var(--muted);margin:5px 0 12px}
+input,button{width:100%;padding:12px;border-radius:9px;font:inherit;margin:5px 0}
+input{background:var(--bg);border:1px solid var(--line);color:var(--text)}
+button{border:0;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+button.alt{background:#475569}button:disabled{opacity:.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.item{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px}
+.state{font-weight:700}.ok{color:var(--green)}.bad{color:var(--red)}.wait{color:#fbbf24}
+.hidden{display:none!important}small{color:var(--muted)}
+</style>
+</head>
+<body><main>
+<header>
+<h1>وحدة تحكم المدير — AL MAJID</h1>
+<p>بوابة مستقلة للتحقق من هوية المدير، الصلاحية، واتصال قاعدة البيانات. لا تنفذ أي تعديل على بيانات الوكالة.</p>
+</header>
+<section id="login" class="panel">
+<h2>دخول المدير</h2>
+<button id="google">المتابعة باستخدام Google</button>
+<p style="text-align:center">أو استخدم البريد الإلكتروني وكلمة المرور</p>
+<input id="email" type="email" autocomplete="username" placeholder="البريد الإلكتروني">
+<input id="password" type="password" autocomplete="current-password" placeholder="كلمة المرور">
+<button id="emailLogin">تسجيل الدخول</button>
+<p id="loginStatus" role="status"></p>
+</section>
+<section id="control" class="hidden">
+<div class="panel">
+<h2>حالة جلسة المدير</h2><div id="identity">—</div>
+<button id="refresh" class="alt">فحص النظام الآن</button>
+<button id="logout" class="alt">تسجيل الخروج</button>
+<p id="overall" role="status">لم يبدأ الفحص.</p>
+</div>
+<div class="panel">
+<h2>فحوصات الاتصال والصلاحيات</h2>
+<div class="grid">
+<div class="item"><div>Supabase API</div><div id="api" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>جلسة المصادقة</div><div id="auth" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>صلاحية المدير النشط</div><div id="director" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>قراءة بيانات الموظفين</div><div id="employees" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>قراءة بيانات العملاء</div><div id="clients" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>قراءة بيانات المشاريع</div><div id="projects" class="state wait">بانتظار الفحص</div></div>
+<div class="item"><div>قراءة السجل المالي</div><div id="finance" class="state wait">بانتظار الفحص</div></div>
+</div>
+<p><small>الفحوصات تقرأ حالة الجداول فقط ولا تضيف أو تحذف أو تعدّل أي سجل.</small></p>
+</div>
+</section>
+</main>
+<script>
+(function(){
+"use strict";
+const URL="https://cafvkonbubrqsabsywry.supabase.co";
+const KEY="sb_publishable_QvFdOACJ5_bBnhjp3Pnm0g_vG_d1iR6";
+const STORAGE="sb-cafvkonbubrqsabsywry-director-control-session";
+const $=id=>document.getElementById(id);
+const client=window.supabase.createClient(URL,KEY,{auth:{storageKey:STORAGE,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+function status(id,message,kind){const el=$(id);el.textContent=message;el.className="state "+(kind||"wait")}
+function message(id,text,bad){$(id).textContent=text;$(id).className=bad?"bad":"ok"}
+function showControl(user){$("login").classList.add("hidden");$("control").classList.remove("hidden");$("identity").textContent=user.email||"حساب مدير مصادق عليه"}
+function showLogin(){ $("control").classList.add("hidden");$("login").classList.remove("hidden")}
+async function checkDirector(){
+ const {data,error}=await client.rpc("is_active_director");
+ if(error)throw new Error("تعذر تنفيذ فحص صلاحية المدير: "+error.message);
+ if(data!==true)throw new Error("الحساب مسجل الدخول لكنه غير معتمد كمدير نشط.");
+ return true;
+}
+async function doEmailLogin(){
+ $("emailLogin").disabled=true;message("loginStatus","جارٍ التحقق...",false);
+ try{
+  const {data,error}=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+  if(error||!data.user)throw error||new Error("تعذر تسجيل الدخول.");
+  await checkDirector();showControl(data.user);await runChecks();
+ }catch(e){message("loginStatus",e.message||"فشل تسجيل الدخول أو التحقق من صلاحية المدير.",true);await client.auth.signOut().catch(()=>{});}
+ finally{$("emailLogin").disabled=false;}
+}
+async function runChecks(){
+ $("refresh").disabled=true;$("overall").textContent="جارٍ فحص الاتصال والصلاحيات...";
+ for(const id of ["api","auth","director","employees","clients","projects","finance"])status(id,"جارٍ الفحص","wait");
+ try{
+  const {data:{session},error:sessionError}=await client.auth.getSession();
+  if(sessionError)throw sessionError;if(!session?.user)throw new Error("لا توجد جلسة مصادق عليها.");
+  status("api","متصل","ok");status("auth","جلسة نشطة","ok");
+  await checkDirector();status("director","مدير نشط — تم التحقق","ok");
+  const checks=[["employees","am_ai_employees"],["clients","am_clients"],["projects","am_projects"],["finance","am_finance_transactions"]];
+  for(const [id,table] of checks){
+   const {count,error}=await client.from(table).select("*",{count:"exact",head:true});
+   if(error)status(id,"فشل القراءة: "+error.message,"bad");
+   else status(id,"نجح الاتصال — "+(count??"عدد غير متاح")+" سجل","ok");
+  }
+  $("overall").textContent="اكتمل الفحص. راجع نتيجة كل خدمة أدناه.";
+ }catch(e){
+  status("director","لم يتم إثبات الصلاحية","bad");
+  $("overall").textContent=e.message||"تعذر إكمال الفحص.";
+  if((e.message||"").includes("لا توجد جلسة"))showLogin();
+ }finally{$("refresh").disabled=false;}
+}
+$("google").addEventListener("click",async()=>{
+ try{const {error}=await client.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.href.split("#")[0].split("?")[0]}});if(error)throw error;}
+ catch(e){message("loginStatus",e.message||"تعذر بدء تسجيل الدخول عبر Google.",true);}
+});
+$("emailLogin").addEventListener("click",doEmailLogin);
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")doEmailLogin()});
+$("refresh").addEventListener("click",runChecks);
+$("logout").addEventListener("click",async()=>{await client.auth.signOut();showLogin();message("loginStatus","تم تسجيل الخروج.",false)});
+(async()=>{
+ try{
+  const {data:{session},error}=await client.auth.getSession();if(error)throw error;
+  if(session?.user){await checkDirector();showControl(session.user);await runChecks();}
+ }catch(e){showLogin();message("loginStatus",e.message||"تعذر استعادة جلسة المدير.",true);}
+})();
+})();
+</script>
+</body></html>
