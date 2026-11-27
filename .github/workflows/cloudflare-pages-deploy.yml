@@ -1,0 +1,23 @@
+name: Deploy Control Center to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ secrets.CF_PAGES_DEPLOY_HOOK != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger this project's Cloudflare Pages deployment
+        env:
+          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+        run: |
+          set -eu
+          test -n "$CF_PAGES_DEPLOY_HOOK"
+          curl --fail --silent --show-error --request POST "$CF_PAGES_DEPLOY_HOOK"
