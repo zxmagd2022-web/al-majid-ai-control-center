@@ -1489,7 +1489,11 @@
     const select = getElement("customerProjectSelect");
     if (select) select.innerHTML = '<option value="">جارٍ تحميل المشاريع...</option>';
     const client = initializeCustomerClient();
-    const { data, error } = await client.rpc("customer_list_projects");
+    // RLS restricts this query to projects whose client record is linked to auth.uid().
+    const { data, error } = await client
+      .from("am_projects")
+      .select("id,title,approved_amount,currency")
+      .order("created_at", { ascending: false });
     if (error) {
       if (select) select.innerHTML = '<option value="">تعذر تحميل المشاريع</option>';
       setStatus("customerStatus", "تعذر تحميل مشاريع هذا الحساب: " + error.message, true);
@@ -1500,7 +1504,7 @@
     const projects = normalizeCustomerProjects(data);
     if (!projects.length) {
       select.innerHTML = '<option value="">لا توجد مشاريع مرتبطة بهذا الحساب</option>';
-      setStatus("customerStatus", "تم تسجيل الدخول، لكن لا توجد مشاريع مرتبطة بهذا الحساب حالياً. اطلب من الوكالة ربط حسابك بسجل العميل وإضافة مشروعك.", true);
+      setStatus("customerStatus", "تم تسجيل الدخول وربط حسابك بنجاح، لكن لا توجد مشاريع مسجلة لك حتى الآن. ستظهر هنا بعد أن تضيف الوكالة مشروعك.", false);
       return false;
     }
 
