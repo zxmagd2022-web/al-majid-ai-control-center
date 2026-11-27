@@ -231,7 +231,10 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <span>مرحباً بك في مركز التحكم الآمن</span>
-                <button class="danger" onclick="logoutAdmin()">تسجيل الخروج</button>
+                <div class="btn-group" style="align-items:center;">
+                    <button type="button" onclick="showMarketAdminTab()" aria-label="فتح إدارة السوق الإلكتروني" style="background:#087443;">إدارة السوق الإلكتروني</button>
+                    <button class="danger" onclick="logoutAdmin()">تسجيل الخروج</button>
+                </div>
             </div>
         </div>
 
@@ -242,7 +245,7 @@
             <button class="secondary" onclick="switchTab('projectsTab')">المشاريع</button>
             <button class="secondary" onclick="switchTab('financeTab')">الإيرادات والمصروفات</button>
             <button class="secondary" onclick="switchTab('chatTab')">محادثات العملاء</button>
-            <button class="secondary" type="button" onclick="showMarketAdminTab()">إدارة السوق الإلكتروني</button>
+            <button type="button" onclick="showMarketAdminTab()" aria-label="فتح إدارة السوق الإلكتروني" style="background:#087443;">إدارة السوق الإلكتروني</button>
             <button class="secondary" type="button" onclick="window.location.href='staff-requests.html'">طلبات انضمام الموظفين</button>
             <button class="secondary" type="button" onclick="window.open('system-check.html','_blank','noopener')">فحص النظام والصلاحيات</button>
         </div>
@@ -552,7 +555,7 @@
     </div>
 </div>
 </div>
-<script src="frontend.js?v=20261126-6"></script>
-<script src="market-admin.js"></script>
+<script src="frontend.js?v=20261127-market-admin-1"></script>
+<script src="market-admin.js?v=20261127-market-admin-1"></script>
 </body>
 </html>
