@@ -26,7 +26,7 @@ The Cloudflare Pages project serves this repository from its root with no build 
 
 A GitHub commit does not by itself prove that Cloudflare Pages production has deployed the change. Verify the live Pages site after each release.
 
-## Security
+## Security 
 
 The canonical security policy and vulnerability reporting instructions are in [SECURITY.md](SECURITY.md). Do not place passwords, OTP codes, API secrets, private keys, or Supabase service-role keys in source code.
 
